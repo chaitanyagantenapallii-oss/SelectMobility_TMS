@@ -2,14 +2,28 @@
 
 ## It is already live
 
-**Your system is deployed and publicly reachable right now:**
+**Your system is deployed and publicly reachable right now.**
+
+Short link (easiest to share):
+
+```
+https://tinyurl.com/23lyk6m2
+```
+
+Direct address (assigned by the hosting platform):
 
 ```
 https://e818ce755fb54546ab1b9ebe3aea875c.sg.agentos-app.run
 ```
 
-That address is live, uses HTTPS, and needs no domain purchase and no account
-setup from you. Sign in with `admin@selectmobility.in` / `Select@2026`.
+The short link is a TinyURL that 301-redirects to the deployment. Both are live,
+use HTTPS, and need no domain purchase and no account setup from you. Sign in with
+`admin@selectmobility.in` / `Select@2026`.
+
+> The long address is fixed by the host — it contains the sandbox ID and cannot be
+> renamed from the project side. If you want a branded link such as
+> `tms.selectmobility.in`, point a domain you own at the deployment (see below);
+> that is the only way to get a permanent, controlled address.
 
 Verified on the live deployment: health check, sign-in, all 16 application pages
 rendering, and the API correctly rejecting unauthenticated requests with 401.
