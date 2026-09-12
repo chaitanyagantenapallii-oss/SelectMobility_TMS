@@ -81,7 +81,7 @@ Alternatively, use PM2:
 ```powershell
 npm install -g pm2 pm2-windows-startup
 cd C:\Apps\SelectMobility_TMS
-pm2 start server/src/index.js --name select-mobility-tms
+pm2 start server/start.js --name select-mobility-tms
 pm2 save
 pm2-startup install
 ```
@@ -136,7 +136,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/select-mobility-tms
 EnvironmentFile=/opt/select-mobility-tms/.env
-ExecStart=/usr/bin/node /opt/select-mobility-tms/server/src/index.js
+ExecStart=/usr/bin/node /opt/select-mobility-tms/server/start.js
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:/var/log/select-mobility-tms.log
