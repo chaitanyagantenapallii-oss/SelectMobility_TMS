@@ -413,6 +413,51 @@ collections they already knew about, and none of them rendered a page or checked
 that a frontend call had a backend counterpart. Green tests were not evidence
 the application worked. The contract guard and UI suite now close that gap.
 
+### Defect found and fixed: stale-render race
+
+A second, subtler defect was found only after the UI suite was run repeatedly
+against the **deployed URL** rather than localhost. Page controllers fetch data
+asynchronously and then write into DOM they created earlier:
+
+```js
+const { data } = await Api.get(`/routes?${params}`);
+document.getElementById('r-count').textContent = `${data.length} routes`;
+```
+
+If the user navigates away while that fetch is in flight, the `await` resumes
+after `#content` has already been replaced with the new page. The late write
+then either throws `Cannot set properties of null (setting 'textContent')` —
+which the router's catch turned into a full "Could not load this page" panel,
+destroying the page the user was actually on — or silently corrupts the new
+view. Because several controllers await two or three times before painting,
+and `ShiftsPage` shares a file with `RoutesPage`, one navigation could break a
+page belonging to a different controller entirely.
+
+On localhost the race window is sub-millisecond and was almost never observed;
+over the internet it reproduced in 2–4 of every 20 page renders. This is the
+kind of bug that only appears on a real user's slow connection, and it had been
+present in the shipped code.
+
+Fixed with two complementary guards:
+
+- **Navigation generation counter** (`App.route()` in `app.js`). Each
+  navigation increments the counter and stamps the controller it starts. A
+  render begun under an older generation is recognised as stale, so a slow page
+  cannot paint over the page the user moved to, and a failed stale render no
+  longer replaces a live view with an error panel.
+- **`currentEl(id)` helper** (`api.js`). Returns `null` when the element is
+  missing *or no longer connected to the document*, so post-await writes can
+  bail out with `if (!el) return;`. Applied to all 20 unguarded write sites
+  across `dashboard`, `employees`, `manifests`, `reports`, `resources`,
+  `routes`, `trips` and `vehicles`.
+
+The UI test's wait logic was also corrected: it originally slept a fixed 400 ms,
+which over the internet measured the loading spinner and reported a false
+failure. It now polls until the page settles and has a budget generous enough
+for a cold container, while still detecting the app's own error panel
+immediately — so a genuine failure still fails fast rather than waiting out the
+timeout.
+
 ---
 
 *Select Mobility India Private Limited &mdash; Employee Transportation Division.*
