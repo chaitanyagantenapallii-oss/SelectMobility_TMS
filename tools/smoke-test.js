@@ -72,9 +72,49 @@ function line(label, ok, detail) {
   check('GET /api/auth/me', me.status === 200 && me.body.user?.email === 'admin@selectmobility.in');
 
   console.log('\nCollections');
-  for (const ep of ['vehicles', 'drivers', 'employees', 'routes', 'trips', 'maintenance', 'fuel', 'documents', 'vendors', 'expenses', 'users']) {
+  for (const ep of ['vehicles', 'drivers', 'employees', 'routes', 'shifts', 'trips', 'maintenance', 'fuel', 'documents', 'vendors', 'expenses', 'users']) {
     const r = await req('GET', `/api/${ep}`);
     check(`GET /api/${ep}`, r.status === 200 && Array.isArray(r.body.data), `${r.body.data?.length} rows`);
+  }
+
+  /**
+   * Regression guard: every collection the frontend fetches must exist as a
+   * route. A missing route returns 404, which the page renders as an error
+   * panel - several pages were silently broken this way because the old suite
+   * only exercised collections it already knew about.
+   */
+  console.log('\nFrontend / backend contract');
+  {
+    const fs = require('fs');
+    const path = require('path');
+    const pagesDir = path.join(__dirname, '..', 'client', 'js', 'pages');
+    const sources = [
+      fs.readFileSync(path.join(__dirname, '..', 'client', 'js', 'api.js'), 'utf8'),
+      ...fs.readdirSync(pagesDir).map((f) => fs.readFileSync(path.join(pagesDir, f), 'utf8')),
+    ].join('\n');
+
+    // Collect the first path segment of every Api.get('/foo...') call.
+    const called = new Set();
+    for (const m of sources.matchAll(/Api\.(?:get|post|put|del)\(\s*[`'"]\/([a-z-]+)/gi)) {
+      called.add(m[1]);
+    }
+    // Endpoints that are intentionally not collection resources.
+    const nonCollection = new Set(['auth', 'health', 'dashboard', 'reports', 'search']);
+
+    for (const ep of [...called].filter((e) => !nonCollection.has(e)).sort()) {
+      const r = await req('GET', `/api/${ep}`);
+      // A 404 means the frontend calls an endpoint that does not exist.
+      // A 2xx or 401/403 means the route exists (guarded or open), which is
+      // fine here. A transport error (status 0) must NOT pass - that would
+      // make this guard silently useless.
+      const missing = r.status === 404;
+      const broken = r.status === 0;
+      check(
+        `frontend endpoint exists: GET /api/${ep}`,
+        !missing && !broken,
+        r.status === 0 ? 'no response from server' : `status ${r.status}`,
+      );
+    }
   }
 
   console.log('\nEnriched / computed views');
