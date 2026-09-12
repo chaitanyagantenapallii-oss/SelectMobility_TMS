@@ -43,6 +43,38 @@ function fetchPath(path) {
   const login = await fetchPath('/login.html');
   check('login form present', login.body.includes('id="login-form"') && login.body.includes('id="password"'));
   check('login loads the API client', login.body.includes('/js/api.js'));
+  check('login loads its own stylesheet', login.body.includes('/css/login.css'));
+  check('login loads its own controller', login.body.includes('/js/login.js'));
+  // The efficiency affordances: password reveal, remembered email, caps-lock hint.
+  check('login offers password reveal',
+    login.body.includes('id="pw-toggle"'));
+  check('login offers remember-me',
+    login.body.includes('id="remember"'));
+  check('login warns on Caps Lock',
+    login.body.includes('id="caps-warn"'));
+  check('login fields are labelled',
+    (login.body.match(/<label[^>]*for="(email|password)"/g) || []).length === 2);
+
+  // Both login assets must actually resolve, and the stylesheet must carry the
+  // rules rather than silently 404-ing into the SPA fallback page.
+  const loginCss = await fetchPath('/css/login.css');
+  check('login.css serves as stylesheet',
+    loginCss.status === 200 && !loginCss.body.trim().startsWith('<!DOCTYPE'),
+    loginCss.body.trim().startsWith('<!DOCTYPE') ? 'served HTML fallback instead' : `${loginCss.body.length} bytes`);
+  check('login.css defines the login shell', loginCss.body.includes('.login-shell'));
+  check('login.css respects reduced motion', loginCss.body.includes('prefers-reduced-motion'));
+
+  const loginJs = await fetchPath('/js/login.js');
+  check('login.js serves as script',
+    loginJs.status === 200 && !loginJs.body.trim().startsWith('<!DOCTYPE'),
+    loginJs.body.trim().startsWith('<!DOCTYPE') ? 'served HTML fallback instead' : `${loginJs.body.length} bytes`);
+  check('login.js validates before submitting', loginJs.body.includes('validateEmail') && loginJs.body.includes('EMAIL_RE'));
+
+  // Legacy login rules must not linger in app.css now that login.css owns them,
+  // otherwise two competing breakpoints fight over the same class names.
+  const appCssBody = (await fetchPath('/css/app.css')).body;
+  check('app.css no longer styles the login screen',
+    !appCssBody.includes('.login-brand') && !appCssBody.includes('.login-shell'));
 
   // Verify the dashboard shell and that every referenced script actually resolves.
   const dash = await fetchPath('/dashboard.html');

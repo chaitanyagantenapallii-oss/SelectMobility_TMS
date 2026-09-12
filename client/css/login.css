@@ -1,0 +1,422 @@
+/* ==========================================================================
+   Select Mobility India Pvt. Ltd. - Sign-in screen
+   Loaded only by login.html, after app.css so it can build on the brand tokens.
+   ========================================================================== */
+
+.login-body { background: var(--canvas); }
+
+.login-shell {
+  display: grid;
+  grid-template-columns: 1.08fr 1fr;
+  min-height: 100vh;
+}
+
+/* ---------- Brand side ---------------------------------------------------- */
+
+.login-brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 54px 52px;
+  color: #fff;
+  background:
+    radial-gradient(120% 120% at 85% 8%, #1266a0 0%, transparent 55%),
+    linear-gradient(158deg, var(--brand-900) 0%, var(--brand-800) 48%, var(--brand-700) 100%);
+}
+
+/* Soft drifting light blobs: depth without an image asset or a network request. */
+.aurora { position: absolute; inset: 0; pointer-events: none; }
+.aurora .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(46px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.aurora .b1 {
+  width: 380px; height: 380px; right: -90px; top: -110px;
+  background: rgba(26, 128, 196, 0.85);
+  animation: drift 19s ease-in-out infinite;
+}
+.aurora .b2 {
+  width: 300px; height: 300px; left: -80px; bottom: -70px;
+  background: rgba(245, 158, 11, 0.36);
+  animation: drift 24s ease-in-out infinite reverse;
+}
+.aurora .b3 {
+  width: 240px; height: 240px; right: 16%; bottom: 16%;
+  background: rgba(255, 255, 255, 0.16);
+  animation: drift 28s ease-in-out infinite;
+}
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-22px, 20px, 0) scale(1.09); }
+}
+
+.login-logo {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.login-logo .mark {
+  width: 52px; height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 25px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(4px);
+}
+.login-logo .name { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+.login-logo .tagline {
+  font-size: 11.5px;
+  opacity: 0.8;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.login-copy { position: relative; z-index: 1; max-width: 480px; }
+.login-copy h2 {
+  font-size: 33px;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  margin: 0 0 14px;
+}
+.login-copy > p {
+  font-size: 14.5px;
+  line-height: 1.68;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.login-features {
+  list-style: none;
+  margin: 28px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.login-features li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  line-height: 1.5;
+  opacity: 0.94;
+}
+.login-features li > span:first-child {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.login-features li > span:last-child { padding-top: 3px; }
+
+.login-legal {
+  position: relative;
+  z-index: 1;
+  font-size: 11.5px;
+  opacity: 0.66;
+}
+
+/* ---------- Form side ----------------------------------------------------- */
+
+.login-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: var(--surface);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 392px;
+  animation: rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.login-head h1 {
+  font-size: 25px;
+  letter-spacing: -0.3px;
+  margin: 0 0 6px;
+}
+.login-head .sub {
+  color: var(--ink-500);
+  font-size: 13.5px;
+  margin: 0 0 26px;
+}
+
+/* Field with an icon, inline validation and a floating label position that
+   stays put so the layout never shifts while the user types. */
+.lf { margin-bottom: 15px; }
+.lf > label,
+.lf-row label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-700);
+  margin-bottom: 6px;
+}
+.lf-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lf-wrap { position: relative; display: flex; align-items: center; }
+.lf-ico {
+  position: absolute;
+  left: 12px;
+  width: 17px; height: 17px;
+  color: var(--ink-400);
+  pointer-events: none;
+  transition: color 0.15s;
+}
+.lf-ico svg { width: 100%; height: 100%; display: block; }
+
+.lf input {
+  width: 100%;
+  padding: 11px 12px 11px 39px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--ink-900);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.lf input::placeholder { color: var(--ink-400); }
+.lf input:hover:not(:focus) { border-color: #cbd5e1; }
+.lf input:focus {
+  outline: none;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3.5px rgba(26, 128, 196, 0.14);
+}
+.lf-wrap:focus-within .lf-ico { color: var(--brand-500); }
+.lf input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px #fff inset;
+  -webkit-text-fill-color: var(--ink-900);
+}
+
+/* Show/hide password */
+.lf-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--brand-600);
+  cursor: pointer;
+  border-radius: 4px;
+}
+.lf-toggle:hover { color: var(--brand-800); text-decoration: underline; }
+.lf-toggle:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+
+/* Validation messages: reserved height so nothing jumps when they appear */
+.lf-msg {
+  font-size: 11.5px;
+  color: var(--danger-600);
+  min-height: 15px;
+  margin-top: 4px;
+}
+.lf.invalid input {
+  border-color: var(--danger-600);
+  background: #fffafa;
+}
+.lf.invalid input:focus { box-shadow: 0 0 0 3.5px rgba(185, 28, 28, 0.12); }
+.lf.invalid .lf-ico { color: var(--danger-600); }
+
+.lf-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 4px 0 18px;
+  min-height: 20px;
+}
+.lf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.8px;
+  color: var(--ink-700);
+  cursor: pointer;
+  user-select: none;
+}
+.lf-check input {
+  width: 15px; height: 15px;
+  accent-color: var(--brand-600);
+  cursor: pointer;
+  margin: 0;
+}
+.lf-caps {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--warn-600);
+  background: var(--warn-100);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+/* Error banner */
+.login-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 15px;
+  padding: 10px 12px;
+  font-size: 12.8px;
+  line-height: 1.5;
+  color: #7f1d1d;
+  background: var(--danger-100);
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  animation: shake 0.32s ease;
+}
+.login-error svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+/* Submit button with an inline spinner */
+.login-submit {
+  position: relative;
+  width: 100%;
+  padding: 12px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, var(--brand-600) 0%, var(--brand-700) 100%);
+  border: 1px solid var(--brand-700);
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+}
+.login-submit:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: 0 5px 16px rgba(13, 79, 124, 0.28);
+}
+.login-submit:active:not(:disabled) { transform: translateY(1px); }
+.login-submit:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 2px; }
+.login-submit:disabled { cursor: progress; opacity: 0.82; }
+.login-submit .spin { display: none; }
+.login-submit.loading .lbl { opacity: 0.9; }
+.login-submit.loading .spin {
+  display: block;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: spin 0.65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Demo credentials, collapsed by default so the form stays the focus.
+   Kept behind a one-click reveal: this is an internal system and the accounts
+   are already documented in the README. */
+.demo-creds {
+  margin-top: 22px;
+  padding: 11px 13px;
+  background: var(--brand-50);
+  border: 1px dashed var(--brand-500);
+  border-radius: 9px;
+  font-size: 12.5px;
+}
+.dc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.dc-head strong { color: var(--brand-800); font-size: 12px; }
+.dc-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--brand-600);
+  cursor: pointer;
+}
+.dc-toggle:hover { color: var(--brand-800); text-decoration: underline; }
+
+.dc-body { display: grid; gap: 7px; margin-top: 10px; }
+.dc-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12.3px;
+  text-align: left;
+  color: var(--ink-700);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.dc-item:hover {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px rgba(26, 128, 196, 0.1);
+}
+.dc-role { font-weight: 700; color: var(--brand-800); }
+.dc-mail { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 11.6px; }
+.dc-use { font-size: 11.5px; font-weight: 600; color: var(--brand-600); }
+
+/* ---------- Responsive ---------------------------------------------------- */
+
+@media (max-width: 940px) {
+  .login-shell { grid-template-columns: 1fr; }
+  .login-brand {
+    padding: 34px 30px 38px;
+    min-height: auto;
+  }
+  .login-copy h2 { font-size: 25px; }
+  .login-features { display: none; }
+  .login-legal { margin-top: 22px; }
+  .login-panel { padding: 34px 20px 48px; align-items: flex-start; }
+  .login-card { max-width: 420px; }
+}
+
+@media (max-width: 420px) {
+  .login-brand { padding: 28px 22px 30px; }
+  .login-panel  { padding: 28px 18px 40px; }
+}
+
+/* Respect reduced-motion: keep the polish, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .aurora .blob,
+  .login-card,
+  .login-error,
+  .login-submit .spin { animation: none !important; }
+  .login-card { opacity: 1; transform: none; }
+}
