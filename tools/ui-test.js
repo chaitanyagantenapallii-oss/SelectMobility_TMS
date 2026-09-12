@@ -134,17 +134,28 @@ function makeWindow(opts = {}) {
        * longer than on localhost, so a short sleep measures the loading spinner
        * (a ~27-byte element) and reports a false failure. We wait for real
        * content, or for the app's own error panel, whichever appears first.
+       *
+       * The budget is generous because some pages chain two sequential round
+       * trips (ShiftsPage fetches /shifts then /routes before painting), and a
+       * freshly started sandbox pays container-initialisation cost on the first
+       * request. A real failure surfaces as the app's own error panel, which we
+       * detect immediately - so a long wait only ever costs time, never
+       * accuracy, and never turns a genuine error into a pass.
        */
-      const deadline = Date.now() + 15000;
+      const deadline = Date.now() + 45000;
       let html = '';
+      let settled = false;
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 100));
         html = target ? target.innerHTML : '';
         const loading = html.includes('class="spinner"');
         const failed = html.includes('Could not load this page');
-        if (failed) break;
-        if (!loading && html.length > 800) break;
+        if (failed) { settled = true; break; }
+        if (!loading && html.length > 800) { settled = true; break; }
       }
+      // Distinguish "page never painted" from a normal pass so the failure
+      // message points at a timeout rather than an ambiguous short DOM.
+      if (!settled) err = 'timed out waiting for page content';
     } catch (e) {
       err = `${e.name}: ${e.message}`;
     }
