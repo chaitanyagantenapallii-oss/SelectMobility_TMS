@@ -1,0 +1,27 @@
+{
+  "name": "select-mobility-tms",
+  "version": "1.0.0",
+  "description": "Transport Management System for employee transportation fleets - Select Mobility India Private Limited",
+  "private": true,
+  "main": "server/start.js",
+  "scripts": {
+    "start": "node server/start.js",
+    "dev": "node --watch server/start.js",
+    "seed": "node server/src/db/seed.js",
+    "reset": "node server/src/db/seed.js --force"
+  },
+  "keywords": [
+    "transport",
+    "fleet",
+    "employee-transport",
+    "tms"
+  ],
+  "author": "Select Mobility India Private Limited",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

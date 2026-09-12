@@ -1,0 +1,25 @@
+# Normalise line endings in the repository.
+#
+# Windows developers and Linux build hosts (Render, Railway, Docker) must agree
+# on line endings. Without this, shell scripts and Dockerfiles can arrive on the
+# build host with CRLF and fail in confusing ways.
+
+# Default: let Git decide, but always store LF in the repository.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF so they run correctly from cmd.exe.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files must never be line-ending converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Generated / lock files - keep diffs quiet.
+package-lock.json -diff linguist-generated

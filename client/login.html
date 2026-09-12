@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In &middot; Select Mobility TMS</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<div class="login-shell">
+  <section class="login-brand">
+    <div class="login-logo">
+      <div class="mark">&#128652;</div>
+      <div>
+        <div class="name">Select Mobility India</div>
+        <div class="tagline">Transport Management System</div>
+      </div>
+    </div>
+
+    <div class="login-copy">
+      <h2>Employee transportation, run like clockwork.</h2>
+      <p>
+        One console for your entire staff shuttle operation &mdash; fleet, drivers, routes,
+        shift rosters, passenger manifests and statutory compliance.
+      </p>
+      <div class="login-features">
+        <div><span>&#128666;</span><span>Live fleet and driver availability across vendors and owned vehicles</span></div>
+        <div><span>&#128506;</span><span>Route and shift planning with stop-wise employee rosters</span></div>
+        <div><span>&#9989;</span><span>Trip manifests with digital boarding and no-show tracking</span></div>
+        <div><span>&#128202;</span><span>Cost, fuel and maintenance analytics with one-click CSV exports</span></div>
+        <div><span>&#128220;</span><span>Insurance, permit, PUC and fitness expiry alerts</span></div>
+      </div>
+    </div>
+
+    <div class="login-legal">
+      &copy; <span id="year"></span> Select Mobility India Private Limited. Internal use only.
+    </div>
+  </section>
+
+  <section class="login-panel">
+    <div class="login-card">
+      <h3>Sign in</h3>
+      <p class="sub">Use your operational account to access the transport desk.</p>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="email">Email address <span class="req">*</span></label>
+          <input type="email" id="email" name="email" autocomplete="username" placeholder="you@selectmobility.in" required>
+        </div>
+        <div class="field">
+          <label for="password">Password <span class="req">*</span></label>
+          <input type="password" id="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+        </div>
+        <div class="field error" id="login-error" style="display:none"></div>
+        <button type="submit" class="btn primary" id="login-btn" style="width:100%; justify-content:center; padding:10px">
+          Sign in to transport desk
+        </button>
+      </form>
+
+      <div class="demo-creds">
+        <strong>Demo accounts</strong><br>
+        Administrator &mdash; <code>admin@selectmobility.in</code> / <code>Select@2026</code><br>
+        Operations &mdash; <code>ops@selectmobility.in</code> / <code>Ops@2026</code>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  const form = document.getElementById('login-form');
+  const btn = document.getElementById('login-btn');
+  const errBox = document.getElementById('login-error');
+
+  // If a valid session already exists, go straight to the dashboard.
+  if (Api.token) {
+    Api.get('/auth/me').then(() => { window.location.replace('/dashboard.html'); }).catch(() => Api.clearToken());
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errBox.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      const res = await Api.post('/auth/login', {
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      });
+      Api.setSession(res.token, res.user);
+      window.location.href = '/dashboard.html';
+    } catch (err) {
+      errBox.textContent = err.message || 'Unable to sign in.';
+      errBox.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Sign in to transport desk';
+    }
+  });
+</script>
+</body>
+</html>

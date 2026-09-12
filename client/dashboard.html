@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Mobility TMS &middot; Transport Desk</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-head">
+      <div class="mark">&#128652;</div>
+      <div>
+        <div class="title">Select Mobility</div>
+        <div class="sub">TMS &middot; Transport Desk</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <strong>Select Mobility India Pvt. Ltd.</strong>
+      Employee Transportation Division
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Toggle navigation">&#9776;</button>
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="page-sub" id="page-sub"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="print-btn" title="Print current view">&#128424;</button>
+      <button class="icon-btn" id="alerts-btn" title="Compliance alerts">&#128276;</button>
+      <div class="user-chip" id="user-chip" title="Account and session">
+        <div class="avatar" id="user-avatar">--</div>
+        <div>
+          <div class="who" id="user-name">Loading</div>
+          <div class="role" id="user-role"></div>
+        </div>
+      </div>
+      <button class="icon-btn" id="logout-btn" title="Sign out">&#9099;</button>
+    </header>
+
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+  <!-- Load order matters: api.js defines the shared helpers used by every page. -->
+  <script src="/js/api.js"></script>
+  <script src="/js/pages/dashboard.js"></script>
+  <script src="/js/pages/trips.js"></script>
+  <script src="/js/pages/manifests.js"></script>
+  <script src="/js/pages/routes.js"></script>
+  <script src="/js/pages/vehicles.js"></script>
+  <script src="/js/pages/employees.js"></script>
+  <script src="/js/pages/resources.js"></script>
+  <script src="/js/pages/reports.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

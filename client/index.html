@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=/dashboard.html">
+  <title>Select Mobility TMS</title>
+</head>
+<body>
+  <script>
+    // index.html exists so the bare host URL works; the sign-in flow takes over from there.
+    window.location.replace(localStorage.getItem('smi_tms_token') ? '/dashboard.html' : '/login.html');
+  </script>
+  <p style="font-family: Segoe UI, Arial, sans-serif; padding: 30px">
+    Redirecting to the <a href="/dashboard.html">transport desk</a>&hellip;
+  </p>
+</body>
+</html>

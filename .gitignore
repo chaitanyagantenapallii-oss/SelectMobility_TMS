@@ -1,0 +1,13 @@
+node_modules/
+.env
+server/data/*.db
+server/data/*.db-journal
+server/data/*.db-wal
+server/data/*.db-shm
+# Atomic-write temp files and forensic copies written by the JSON store
+server/data/*.tmp
+server/data/*.corrupt-*
+logs/
+*.log
+.DS_Store
+Thumbs.db

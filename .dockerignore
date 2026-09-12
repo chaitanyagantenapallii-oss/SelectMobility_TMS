@@ -1,0 +1,28 @@
+# Keep build output and dependencies out of the image.
+node_modules
+npm-debug.log*
+
+# Runtime data - mounted as a volume instead, or mirrored via BACKUP_S3_*.
+server/data/*.db
+server/data/*.db-journal
+server/data/*.db-wal
+server/data/*.db-shm
+server/data/*.tmp
+server/data/*.corrupt-*
+server/data/*.restore-tmp
+
+# Secrets and local config
+.env
+
+# Version control and editor noise
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs
+logs
+*.log
+
+# Docs are optional in the image; remove this line to include them.
+# docs

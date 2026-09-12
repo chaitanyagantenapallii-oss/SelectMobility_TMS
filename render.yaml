@@ -1,0 +1,52 @@
+# ============================================================
+#  Render Blueprint - Select Mobility TMS
+#  Docs: https://render.com/docs/blueprint-spec
+#
+#  HOW TO USE
+#  1. Push this project to a GitHub repository.
+#  2. In Render: New + -> Blueprint -> pick the repository.
+#  3. Render reads this file and provisions everything below.
+#
+#  IMPORTANT: free instances have an EPHEMERAL disk. Every restart, redeploy
+#  or period of inactivity wipes server/data/. Set the BACKUP_S3_* variables
+#  in the Render dashboard to keep your records. See .env.example.
+# ============================================================
+
+services:
+  - type: web
+    name: select-mobility-tms
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOST
+        value: 0.0.0.0
+      - key: SESSION_HOURS
+        value: "12"
+      - key: COMPANY_NAME
+        value: Select Mobility India Private Limited
+      - key: COMPANY_CITY
+        value: Pune, Maharashtra, India
+      # Secrets - set these in the Render dashboard, not in Git.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Optional remote persistence (strongly recommended on free plan).
+      - key: BACKUP_S3_ENDPOINT
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_S3_ACCESS_KEY_ID
+        sync: false
+      - key: BACKUP_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: BACKUP_S3_REGION
+        value: auto
