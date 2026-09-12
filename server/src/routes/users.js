@@ -20,7 +20,7 @@ router.post('/', (req, res) => {
   const { name, email, password, role = 'viewer' } = req.body || {};
   if (!name || !email || !password) throw new ApiError(400, 'Name, email and password are required.');
   if (String(password).length < 8) throw new ApiError(400, 'Password must be at least 8 characters.');
-  if (!['admin', 'operations', 'viewer'].includes(role)) throw new ApiError(400, 'Role must be admin, operations or viewer.');
+  if (!['admin', 'operations', 'viewer', 'driver', 'client'].includes(role)) throw new ApiError(400, 'Role must be admin, operations, viewer, driver or client.');
   if (store.find('users', (u) => u.email.toLowerCase() === String(email).toLowerCase())) {
     throw new ApiError(409, `A user with email ${email} already exists.`);
   }
@@ -51,8 +51,8 @@ router.put('/:id', (req, res) => {
   for (const field of ['name', 'email', 'role', 'status']) {
     if (req.body?.[field] !== undefined) patch[field] = req.body[field];
   }
-  if (patch.role && !['admin', 'operations', 'viewer'].includes(patch.role)) {
-    throw new ApiError(400, 'Role must be admin, operations or viewer.');
+  if (patch.role && !['admin', 'operations', 'viewer', 'driver', 'client'].includes(patch.role)) {
+    throw new ApiError(400, 'Role must be admin, operations, viewer, driver or client.');
   }
   if (patch.email && store.find('users', (u) => u.id !== user.id && u.email.toLowerCase() === String(patch.email).toLowerCase())) {
     throw new ApiError(409, `A user with email ${patch.email} already exists.`);

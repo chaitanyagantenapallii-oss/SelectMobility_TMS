@@ -12,7 +12,8 @@
     "test": "node tools/smoke-test.js && node tools/verify-frontend.js",
     "test:browser": "node tools/browser-debug.js .",
     "test:ui": "node tools/ui-test.js .",
-    "test:all": "npm test && npm run test:browser && npm run test:ui"
+    "test:mobile": "node tools/mobile-test.js",
+    "test:all": "npm test && npm run test:mobile && npm run test:browser && npm run test:ui"
   },
   "keywords": [
     "transport",

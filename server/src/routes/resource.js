@@ -34,6 +34,7 @@ function createResource(options) {
     defaults = {},
     validate,
     decorate,
+    afterCreate,
     sortField = 'createdAt',
     writeRole = 'operations',
   } = options;
@@ -98,6 +99,10 @@ function createResource(options) {
     };
     if (payload.regNo) record.regNo = String(payload.regNo).toUpperCase();
     store.insert(collection, record);
+    // Some resources own child records that must exist alongside them - a trip,
+    // for example, is useless without the passenger bookings that make up its
+    // manifest. Runs after insert so the parent id is available.
+    if (afterCreate) afterCreate(record, req);
     audit(req, `${collection}.create`, `Created ${record.id}`);
     res.status(201).json({ data: enrich(record, req) });
   });

@@ -30,6 +30,7 @@ const vendorRoutes = require('./routes/vendors');
 const expenseRoutes = require('./routes/expenses');
 const reportRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
+const mobileRoutes = require('./routes/mobile');
 
 const app = express();
 
@@ -72,6 +73,7 @@ api.use('/vendors', vendorRoutes);
 api.use('/expenses', expenseRoutes);
 api.use('/reports', reportRoutes);
 api.use('/users', userRoutes);
+api.use('/mobile', mobileRoutes);
 
 app.use('/api', api);
 app.use('/api', notFound);

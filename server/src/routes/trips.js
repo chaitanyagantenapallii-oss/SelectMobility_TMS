@@ -4,7 +4,7 @@ const express = require('express');
 const { createResource, validators } = require('./resource');
 const { store } = require('../db/schema');
 const { authenticate, requireRole, audit } = require('../middleware/auth');
-const { ApiError, today, round } = require('../utils/helpers');
+const { ApiError, today, round, nowIso } = require('../utils/helpers');
 
 const base = createResource({
   collection: 'trips',
@@ -38,6 +38,38 @@ const base = createResource({
       }
     },
   ),
+  /**
+   * A trip is only useful with the passengers it carries. Without this, a trip
+   * created from the desk has a permanently empty manifest and the driver app
+   * has nobody to board - the app's core job. Every active employee on the
+   * trip's route is booked in at their usual stop, in route stop order.
+   */
+  afterCreate: (record) => {
+    const employees = store
+      .filter('employees', (e) => e.routeId === record.routeId && e.status === 'active')
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const emp of employees) {
+      store.insert('bookings', {
+        id: store.nextId('bookings', 'BKG'),
+        tripId: record.id,
+        employeeId: emp.id,
+        stop: emp.stop,
+        status: 'confirmed',
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      });
+    }
+
+    if (employees.length) {
+      store.update('trips', record.id, {
+        passengersAllocated: employees.length,
+        passengersBoarded: 0,
+        updatedAt: nowIso(),
+      });
+    }
+  },
+
   decorate: (record) => {
     const route = store.find('routes', (r) => r.id === record.routeId);
     const vehicle = store.find('vehicles', (v) => v.id === record.vehicleId);

@@ -43,6 +43,8 @@ const EMPTY_DATABASE = {
   incidents: [],
   expenses: [],
   auditLog: [],
+  // Raised from the client app and worked through by the transport desk.
+  serviceRequests: [],
 };
 
 function isoDate(offsetDays = 0) {
@@ -390,6 +392,64 @@ function buildSeed() {
     action: 'database.seeded',
     detail: 'Initial demo dataset generated',
     at: stamp(),
+  });
+
+  /* ------------------------------------------------------------------------
+     Mobile app accounts
+     Added after drivers and employees exist so they can be linked by id.
+     Two client organisations let the Client app's scoping be seen working:
+     a client account must never see the other organisation's staff.
+     ------------------------------------------------------------------------ */
+
+  // Tag employees with an organisation so the Client app has something to scope.
+  const CLIENT_ORGS = ['Bharat Forge Ltd', 'Kirloskar Pneumatic'];
+  db.employees.forEach((emp, i) => {
+    emp.organisation = CLIENT_ORGS[i % CLIENT_ORGS.length];
+  });
+
+  const firstDriver = db.drivers[0];
+  if (firstDriver) {
+    // Link the demo driver to a user account so the Driver app can sign in.
+    db.users.push({
+      id: 'USR0003',
+      name: firstDriver.name,
+      email: 'driver@selectmobility.in',
+      role: 'driver',
+      driverId: firstDriver.id,
+      passwordHash: hashPassword('Driver@2026'),
+      status: 'active',
+      createdAt: stamp(),
+      updatedAt: stamp(),
+    });
+    firstDriver.userId = 'USR0003';
+  }
+
+  db.users.push({
+    id: 'USR0004',
+    name: 'Kavita Rao',
+    email: 'client@selectmobility.in',
+    role: 'client',
+    organisation: CLIENT_ORGS[0],
+    passwordHash: hashPassword('Client@2026'),
+    status: 'active',
+    createdAt: stamp(),
+    updatedAt: stamp(),
+  });
+
+  // A real open request so the Client app is not empty on first run.
+  db.serviceRequests.push({
+    id: 'SRQ0001',
+    organisation: CLIENT_ORGS[0],
+    raisedBy: 'client@selectmobility.in',
+    raisedByName: 'Kavita Rao',
+    category: 'new-employee',
+    priority: 'normal',
+    subject: 'Add two new joiners to the S1 pickup',
+    detail: 'Two quality engineers join on the 1st and will need the Hadapsar pickup at 07:05.',
+    status: 'open',
+    response: '',
+    createdAt: stamp(),
+    updatedAt: stamp(),
   });
 
   return db;

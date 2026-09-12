@@ -16,13 +16,25 @@ function authenticate(req, _res, next) {
   const user = store.find('users', (u) => u.id === payload.sub);
   if (!user || user.status !== 'active') return next(new ApiError(401, 'Account is not active.'));
 
-  req.user = { id: user.id, name: user.name, email: user.email, role: user.role };
+  // `organisation` scopes a client account to their own staff; `driverId` links
+  // a driver account to their roster record. Both must be carried through here
+  // because the mobile routes authorise on them and cannot re-derive them.
+  req.user = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    organisation: user.organisation || null,
+    driverId: user.driverId || null,
+  };
   return next();
 }
 
 /**
  * Role gate. `admin` may do anything; `operations` may manage day-to-day
- * records but not user accounts; `viewer` is read-only.
+ * records but not user accounts; `viewer` is read-only. `driver` and `client`
+ * are scoped mobile roles - they are never granted write access to desk
+ * resources, only to their own trips / their own organisation.
  */
 function requireRole(...roles) {
   return (req, _res, next) => {
