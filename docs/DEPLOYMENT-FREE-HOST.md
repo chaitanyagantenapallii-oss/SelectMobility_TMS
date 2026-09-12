@@ -35,35 +35,45 @@ A custom domain is purely cosmetic, and it is the *last* optional step below.
 
 Render, Railway and Fly.io all deploy by pulling from a Git repository.
 
+**The project is already a committed Git repository** — `main` branch, three
+commits, nothing uncommitted. All you need to do is create the empty remote and
+push.
+
+### Easiest path: run the helper script
+
+Double-click **`publish-to-github.bat`** in the project folder. It will:
+
+- create the empty repository on GitHub for you (it guides you through it),
+- take the repository URL you paste,
+- **refuse to run if `.env` or `server/data/tms.db` is not excluded by
+  `.gitignore`** — so it cannot leak your secrets or your data,
+- refuse to run twice, so it cannot clobber an existing remote,
+- push everything and print the exact next step.
+
+### Manual path, if you prefer
+
 1. Create a free account at <https://github.com> if you do not have one.
 2. Install Git for Windows: <https://git-scm.com/download/win> (accept defaults).
 3. Open **Git Bash** in the project folder and run:
 
 ```bash
 cd "/c/Users/Chait/Desktop/SelectMobility_TMS"
-git init
-git add .
-git commit -m "Select Mobility TMS - initial commit"
+git remote add origin https://github.com/YOUR-USERNAME/select-mobility-tms.git
+git push -u origin main
 ```
 
 4. On GitHub click **New repository**.
    - Name: `select-mobility-tms`
    - Visibility: **Private** (recommended — this is company data software)
-   - Do **not** tick "Add a README"
-5. GitHub shows you a URL. Connect and push:
-
-```bash
-git remote add origin https://github.com/YOUR-USERNAME/select-mobility-tms.git
-git branch -M main
-git push -u origin main
-```
+   - Do **not** tick "Add a README", ".gitignore" or a licence — the repository
+     must be completely empty or the push will be rejected.
 
 When prompted for a password, paste a **Personal Access Token**, not your
 GitHub password: `Settings → Developer settings → Personal access tokens →
 Tokens (classic) → Generate new token`, tick the `repo` scope.
 
-> **Before pushing, confirm `.gitignore` excludes `server/data/` and `.env`.**
-> Your database file and secrets must never land in a repository.
+> **Already handled for you:** `.gitignore` excludes `.env`, the database, and
+> `node_modules`. Verified — those files are not tracked and cannot be pushed.
 
 ---
 
@@ -226,14 +236,27 @@ Run `start-tms.bat`. Other machines on the same Wi-Fi reach it at
 
 ## Checklist
 
-- [ ] Project pushed to a private GitHub repository
-- [ ] Deployed on Render / Railway / Fly.io, build succeeded
-- [ ] `ADMIN_EMAIL` and `ADMIN_PASSWORD` set as host secrets
-- [ ] Signed in successfully at the public URL
-- [ ] Cloudflare R2 bucket created and `BACKUP_S3_*` variables set
-- [ ] Startup banner shows "local file + remote mirror"
-- [ ] Tested: make a change, restart the service, confirm the change survived
-- [ ] (Optional) Custom domain added and DNS record created
+**Already done for you (no action needed):**
+
+- [x] Git repository initialised on the `main` branch, everything committed
+- [x] `.gitignore` excludes `.env`, the database and `node_modules` — verified
+- [x] `.gitattributes` set so line endings are correct on Linux build hosts
+- [x] Dependency audit clean (`npm audit` → 0 vulnerabilities)
+- [x] Verified a **fresh clone** installs and boots correctly on a clean disk
+- [x] Verified it honours an injected `PORT` and `ADMIN_PASSWORD`, as hosts provide
+- [x] `render.yaml`, `railway.toml`, `railway.json`, `Dockerfile` all point at the
+      correct entry point
+- [x] Both test suites pass (56 API checks, 37 frontend checks)
+
+**Needs your account (I cannot do these — they require your credentials):**
+
+- [ ] Run `publish-to-github.bat` to create the GitHub repository and push
+- [ ] Sign in to Render/Railway and point it at that repository
+- [ ] Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` when the host prompts for them
+- [ ] Create the Cloudflare R2 bucket and set the `BACKUP_S3_*` variables
+- [ ] Confirm the banner reads "local file + remote mirror"
+- [ ] Test: make a change, restart the service, confirm the change survived
+- [ ] (Optional) Buy a domain and add the DNS record
 
 ---
 
