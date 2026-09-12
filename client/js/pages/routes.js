@@ -52,9 +52,20 @@ const RoutesPage = {
     if (this.state.shiftId !== 'all') params.set('shiftId', this.state.shiftId);
 
     const { data } = await Api.get(`/routes?${params}`);
-    document.getElementById('r-count').textContent = `${data.length} routes`;
 
-    document.getElementById('r-table').innerHTML = renderTable({
+    /**
+     * The fetch above is asynchronous. If the user navigated to another page
+     * while it was in flight, #r-count and #r-table belong to a page that is no
+     * longer on screen - writing to them would either throw or corrupt the new
+     * view. Bail out and leave the current page alone.
+     */
+    const countEl = document.getElementById('r-count');
+    const tableEl = document.getElementById('r-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} routes`;
+
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No routes configured',
       columns: [
@@ -75,7 +86,9 @@ const RoutesPage = {
 
     // Highlight the three busiest routes as cards.
     const top = data.slice().sort((a, b) => b.employeeCount - a.employeeCount).slice(0, 2);
-    document.getElementById('r-cards').innerHTML = top.map((r) => `
+    const cardsEl = currentEl('r-cards');
+    if (!cardsEl) return;
+    cardsEl.innerHTML = top.map((r) => `
       <div class="card" style="margin-bottom:0">
         <div class="card-head">
           <h3>${escapeHtml(r.code)} \u00B7 ${escapeHtml(r.name)}</h3>

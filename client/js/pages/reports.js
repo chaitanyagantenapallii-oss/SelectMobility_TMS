@@ -115,7 +115,18 @@ const ReportsPage = {
 
     const params = new URLSearchParams(this.range);
     Api.get(`/reports/${key}.json?${params}`).then(({ data, meta }) => {
-      document.getElementById('rp-meta').textContent =
+      /**
+       * The report fetch above can take several seconds on a wide date range.
+       * If the user switched pages in the meantime, the viewer elements below
+       * belong to a page that is no longer on screen - writing to them would
+       * throw or corrupt the new view, so drop the result instead.
+       */
+      const metaEl = currentEl('rp-meta');
+      const tableEl = currentEl('rp-table');
+      const totalsEl = currentEl('rp-totals');
+      if (!metaEl || !tableEl || !totalsEl) return;
+
+      metaEl.textContent =
         `${meta.rowCount} rows \u00B7 ${Fmt.date(meta.range.from)} to ${Fmt.date(meta.range.to)} \u00B7 generated ${Fmt.time(meta.generatedAt)}`;
 
       const columns = meta.columns.map((label) => {
@@ -134,7 +145,7 @@ const ReportsPage = {
         };
       });
 
-      document.getElementById('rp-table').innerHTML = renderTable({
+      tableEl.innerHTML = renderTable({
         rows: data.slice(0, 500),
         columns,
         emptyTitle: 'No data in this period',
@@ -143,7 +154,7 @@ const ReportsPage = {
 
       const totals = meta.totals || {};
       const numericKeys = Object.keys(totals);
-      document.getElementById('rp-totals').innerHTML = numericKeys.length
+      totalsEl.innerHTML = numericKeys.length
         ? `<div class="section-title">Column totals</div>
            <div class="grid cols-4">
              ${numericKeys.slice(0, 8).map((k) => `<div class="stat" style="padding:11px 13px">
@@ -153,7 +164,9 @@ const ReportsPage = {
            </div>`
         : '';
     }).catch((err) => {
-      document.getElementById('rp-table').innerHTML = `<div class="empty"><div class="ico">&#9888;&#65039;</div><h4>Report failed</h4><p>${escapeHtml(err.message)}</p></div>`;
+      const tableEl = currentEl('rp-table');
+      if (!tableEl) return;
+      tableEl.innerHTML = `<div class="empty"><div class="ico">&#9888;&#65039;</div><h4>Report failed</h4><p>${escapeHtml(err.message)}</p></div>`;
     });
   },
 

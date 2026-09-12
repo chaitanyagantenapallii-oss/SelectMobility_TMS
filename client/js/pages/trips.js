@@ -101,9 +101,15 @@ const TripsPage = {
     this.meta = res.meta;
 
     const rows = res.data;
-    document.getElementById('t-count').textContent = `${res.meta.total} trips in register`;
 
-    document.getElementById('t-table').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('t-count');
+    const tableEl = currentEl('t-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${res.meta.total} trips in register`;
+
+    tableEl.innerHTML = renderTable({
       rows,
       emptyTitle: 'No trips found',
       emptyText: 'Adjust the filters or log a new trip run.',

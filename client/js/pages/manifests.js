@@ -60,7 +60,12 @@ const ManifestsPage = {
 
     const actions = (r) => `<button class="btn sm primary" onclick="App.go('manifests','${r.id}')">Open manifest</button>`;
 
-    document.getElementById('m-pending').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetches were in flight.
+    const pendingEl = currentEl('m-pending');
+    const recentEl = currentEl('m-recent');
+    if (!pendingEl || !recentEl) return;
+
+    pendingEl.innerHTML = renderTable({
       rows: running,
       columns,
       rowActions: actions,
@@ -68,7 +73,7 @@ const ManifestsPage = {
       emptyText: 'All of today\u2019s departures have been closed out.',
     });
 
-    document.getElementById('m-recent').innerHTML = renderTable({
+    recentEl.innerHTML = renderTable({
       rows: recentRes.data.slice(0, 24),
       columns,
       rowActions: actions,

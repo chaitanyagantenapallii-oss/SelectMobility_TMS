@@ -71,6 +71,23 @@ const App = {
   current: null,
   alerts: { compliance: 0, incidents: 0 },
 
+  /**
+   * Navigation generation counter.
+   *
+   * Every page controller fetches its data asynchronously and then writes into
+   * the DOM it created. When the user navigates away mid-fetch, that await
+   * resolves after #content already belongs to a different page - the late
+   * write then either throws on a missing element (e.g. `Cannot set properties
+   * of null`) or silently corrupts the view the user is now looking at.
+   *
+   * route() bumps this counter on every navigation. A render that started under
+   * an older generation is stale: its container has been detached from the
+   * document, so we drop it instead of letting it clobber the new page. The
+   * check below covers the whole controller including its awaits, which is far
+   * more reliable than guarding every getElementById call individually.
+   */
+  navGeneration: 0,
+
   pages: {
     dashboard: () => DashboardPage,
     trips: () => TripsPage,
@@ -263,15 +280,33 @@ const App = {
     this.current = controller;
     window.scrollTo({ top: 0 });
 
-    Promise.resolve(controller.render(container, args)).catch((err) => {
-      container.innerHTML = `
-        <div class="card"><div class="empty">
-          <div class="ico">&#9888;&#65039;</div>
-          <h4>Could not load this page</h4>
-          <p>${escapeHtml(err.message)}</p>
-          <button class="btn primary" onclick="App.route()">Retry</button>
-        </div></div>`;
-    });
+    /**
+     * Stamp this navigation. Any render begun under an earlier generation is
+     * abandoned once its awaits resolve, so a slow page cannot overwrite the
+     * page the user has since moved to. See navGeneration above.
+     */
+    const generation = ++this.navGeneration;
+    this.isCurrent = () => generation === this.navGeneration;
+    controller._generation = generation;
+
+    Promise.resolve(controller.render(container, args))
+      .then(() => {
+        // Mark the controller stale once its render resolves, so any handler it
+        // registered that fires later (filter changes, debounced search) knows
+        // it no longer owns the visible page.
+        if (generation !== this.navGeneration) controller._stale = true;
+      })
+      .catch((err) => {
+        // A failed stale render must not paint an error over the live page.
+        if (generation !== this.navGeneration) return;
+        container.innerHTML = `
+          <div class="card"><div class="empty">
+            <div class="ico">&#9888;&#65039;</div>
+            <h4>Could not load this page</h4>
+            <p>${escapeHtml(err.message)}</p>
+            <button class="btn primary" onclick="App.route()">Retry</button>
+          </div></div>`;
+      });
   },
 
   /** Navigate programmatically. */

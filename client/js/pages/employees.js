@@ -54,7 +54,13 @@ const EmployeesPage = {
     if (this.state.status !== 'all') params.set('status', this.state.status);
 
     const { data } = await Api.get(`/employees?${params}`);
-    document.getElementById('e-count').textContent = `${data.length} employees registered`;
+
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('e-count');
+    const tableEl = currentEl('e-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} employees registered`;
 
     const deptSelect = document.getElementById('e-dept');
     const departments = [...new Set(data.map((e) => e.department))].sort();
@@ -66,7 +72,7 @@ const EmployeesPage = {
 
     const rows = this.state.department === 'all' ? data : data.filter((e) => e.department === this.state.department);
 
-    document.getElementById('e-table').innerHTML = renderTable({
+    tableEl.innerHTML = renderTable({
       rows,
       emptyTitle: 'No employees found',
       columns: [

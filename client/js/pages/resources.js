@@ -201,15 +201,21 @@ const MaintenancePage = {
     const spent = all.filter((m) => m.status === 'completed').reduce((a, m) => a + Number(m.cost || 0), 0);
     const open = all.filter((m) => m.status !== 'completed' && m.status !== 'cancelled');
 
-    document.getElementById('mt-stats').innerHTML = `
+    // Bail out if the user navigated away while the fetch was in flight.
+    const statsEl = currentEl('mt-stats');
+    const countEl = currentEl('mt-count');
+    const tableEl = currentEl('mt-table');
+    if (!statsEl || !countEl || !tableEl) return;
+
+    statsEl.innerHTML = `
       <div class="stat"><div class="label">Jobs Logged</div><div class="value">${all.length}</div></div>
       <div class="stat warn"><div class="label">Open Jobs</div><div class="value">${open.length}</div><div class="foot">${open.filter((m) => m.overdue).length} overdue</div></div>
       <div class="stat info"><div class="label">Spend (filtered)</div><div class="value" style="font-size:21px">${Fmt.compactMoney(spent)}</div></div>
       <div class="stat ok"><div class="label">Avg Job Cost</div><div class="value" style="font-size:21px">${Fmt.compactMoney(all.length ? spent / Math.max(1, all.filter((m) => m.status === 'completed').length) : 0)}</div></div>
     `;
-    document.getElementById('mt-count').textContent = `${all.length} jobs`;
+    countEl.textContent = `${all.length} jobs`;
 
-    document.getElementById('mt-table').innerHTML = renderTable({
+    tableEl.innerHTML = renderTable({
       rows: all,
       emptyTitle: 'No maintenance jobs found',
       columns: [
@@ -426,15 +432,21 @@ const FuelPage = {
     const litres = data.reduce((a, f) => a + Number(f.litres || 0), 0);
     const spend = data.reduce((a, f) => a + Number(f.amount || 0), 0);
 
-    document.getElementById('fl-stats').innerHTML = `
+    // Bail out if the user navigated away while the fetch was in flight.
+    const statsEl = currentEl('fl-stats');
+    const countEl = currentEl('fl-count');
+    const tableEl = currentEl('fl-table');
+    if (!statsEl || !countEl || !tableEl) return;
+
+    statsEl.innerHTML = `
       <div class="stat"><div class="label">Transactions</div><div class="value">${data.length}</div></div>
       <div class="stat info"><div class="label">Total Volume</div><div class="value">${Fmt.num(litres, 1)}<small> L/kg</small></div></div>
       <div class="stat warn"><div class="label">Total Spend</div><div class="value" style="font-size:21px">${Fmt.compactMoney(spend)}</div></div>
       <div class="stat ok"><div class="label">Avg Rate</div><div class="value">${litres ? '\u20B9' + (spend / litres).toFixed(2) : '-'}</div><div class="foot">per litre / kg</div></div>
     `;
-    document.getElementById('fl-count').textContent = `${data.length} transactions`;
+    countEl.textContent = `${data.length} transactions`;
 
-    document.getElementById('fl-table').innerHTML = renderTable({
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No fuel records',
       columns: [
@@ -632,20 +644,27 @@ const ExpensesPage = {
 
   renderCharts() {
     const s = this.summary;
-    document.getElementById('ex-stats').innerHTML = `
+
+    // The summary fetch may have resolved after the user navigated away.
+    const statsEl = currentEl('ex-stats');
+    const chartEl = currentEl('ex-chart');
+    const catEl = currentEl('ex-cat');
+    if (!statsEl || !chartEl || !catEl) return;
+
+    statsEl.innerHTML = `
       <div class="stat"><div class="label">Grand Total</div><div class="value" style="font-size:21px">${Fmt.compactMoney(s.grandTotal)}</div><div class="foot">${s.months.length} months recorded</div></div>
       <div class="stat info"><div class="label">Monthly Average</div><div class="value" style="font-size:21px">${Fmt.compactMoney(s.averageMonthly)}</div></div>
       <div class="stat warn"><div class="label">Pending Approval</div><div class="value" style="font-size:21px">${Fmt.compactMoney(s.months.reduce((a, m) => a + m.pending, 0))}</div></div>
       <div class="stat ok"><div class="label">Largest Category</div><div class="value" style="font-size:19px">${s.byCategory[0] ? escapeHtml(Fmt.titleCase(s.byCategory[0].category)) : '-'}</div><div class="foot">${s.byCategory[0] ? Fmt.compactMoney(s.byCategory[0].total) : ''}</div></div>
     `;
 
-    document.getElementById('ex-chart').innerHTML = Chart.bars(
+    chartEl.innerHTML = Chart.bars(
       s.months.map((m) => ({ label: m.month, values: [m.paid, m.pending] })),
       { series: ['Paid', 'Pending'], colors: ['#15803d', '#f59e0b'], height: 215 },
     );
 
     const colors = { 'driver-salary': '#1a80c4', 'vendor-hire': '#7c3aed', fuel: '#f59e0b', maintenance: '#b91c1c', toll: '#0891b2', insurance: '#15803d', misc: '#64748b' };
-    document.getElementById('ex-cat').innerHTML = Chart.donut(
+    catEl.innerHTML = Chart.donut(
       s.byCategory.map((c) => ({ label: Fmt.titleCase(c.category), value: c.total, color: colors[c.category] || '#94a3b8' })),
       { centre: Fmt.compactMoney(s.grandTotal) },
     );
@@ -660,9 +679,15 @@ const ExpensesPage = {
 
     const { data } = await Api.get(`/expenses?${params}`);
     const total = data.reduce((a, e) => a + Number(e.amount || 0), 0);
-    document.getElementById('ex-count').textContent = `${data.length} entries \u00B7 ${Fmt.money(total)}`;
 
-    document.getElementById('ex-table').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('ex-count');
+    const tableEl = currentEl('ex-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} entries \u00B7 ${Fmt.money(total)}`;
+
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No expense entries',
       columns: [
@@ -863,9 +888,15 @@ const DocumentsPage = {
     const { data } = await Api.get(`/documents?${params}`);
     const expired = data.filter((d) => d.status === 'expired').length;
     const expiring = data.filter((d) => d.status === 'expiring').length;
-    document.getElementById('dc-count').textContent = `${data.length} documents \u00B7 ${expired} expired \u00B7 ${expiring} expiring`;
 
-    document.getElementById('dc-table').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('dc-count');
+    const tableEl = currentEl('dc-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} documents \u00B7 ${expired} expired \u00B7 ${expiring} expiring`;
+
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No documents on file',
       columns: [
@@ -1047,15 +1078,21 @@ const IncidentsPage = {
 
     const { data } = await Api.get(`/incidents?${params}`);
 
-    document.getElementById('in-stats').innerHTML = `
+    // Bail out if the user navigated away while the fetch was in flight.
+    const statsEl = currentEl('in-stats');
+    const countEl = currentEl('in-count');
+    const tableEl = currentEl('in-table');
+    if (!statsEl || !countEl || !tableEl) return;
+
+    statsEl.innerHTML = `
       <div class="stat"><div class="label">Total Logged</div><div class="value">${data.length}</div></div>
       <div class="stat danger"><div class="label">Open</div><div class="value">${data.filter((i) => i.status === 'open').length}</div></div>
       <div class="stat warn"><div class="label">High / Critical</div><div class="value">${data.filter((i) => ['high', 'critical'].includes(i.severity)).length}</div></div>
       <div class="stat ok"><div class="label">Closed</div><div class="value">${data.filter((i) => i.status === 'closed').length}</div></div>
     `;
-    document.getElementById('in-count').textContent = `${data.length} incidents`;
+    countEl.textContent = `${data.length} incidents`;
 
-    document.getElementById('in-table').innerHTML = renderTable({
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No incidents recorded',
       emptyText: 'The fleet has a clean safety record in this period.',

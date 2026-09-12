@@ -474,6 +474,28 @@ function renderTable({ rows, columns, rowActions, emptyTitle = 'Nothing here yet
    Small utilities
    -------------------------------------------------------------------------- */
 
+/**
+ * Resolve an element only if it still belongs to the currently displayed page.
+ *
+ * Page controllers fetch data with `await` and then write into elements they
+ * created earlier. If the user navigates away while that fetch is in flight,
+ * the await resumes against a container that has already been replaced, so
+ * `document.getElementById` either returns null (throwing "Cannot set
+ * properties of null") or finds a same-named element belonging to the new page
+ * and corrupts it.
+ *
+ * `currentEl` returns null in that situation, letting callers bail out with a
+ * plain `if (!el) return;` instead of writing into a dead view.
+ *
+ * @param {string} id
+ * @returns {HTMLElement|null}
+ */
+function currentEl(id) {
+  const node = document.getElementById(id);
+  if (!node) return null;
+  return node.isConnected ? node : null;
+}
+
 function debounce(fn, wait = 320) {
   let timer;
   return (...args) => {

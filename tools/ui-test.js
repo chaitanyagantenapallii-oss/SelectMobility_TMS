@@ -124,24 +124,48 @@ function makeWindow(opts = {}) {
     if (target) target.innerHTML = '';
 
     try {
-      // Drive the app's real router for this page, then let its awaits settle.
+      // Drive the app's real router for this page.
       W.eval(`App.go(${JSON.stringify(item.id)})`);
-      await new Promise((r) => setTimeout(r, 400));
+
+      /**
+       * Poll until the page settles rather than sleeping a fixed amount.
+       *
+       * A fixed delay is flaky: over the internet a page's fetches can take far
+       * longer than on localhost, so a short sleep measures the loading spinner
+       * (a ~27-byte element) and reports a false failure. We wait for real
+       * content, or for the app's own error panel, whichever appears first.
+       */
+      const deadline = Date.now() + 15000;
+      let html = '';
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 100));
+        html = target ? target.innerHTML : '';
+        const loading = html.includes('class="spinner"');
+        const failed = html.includes('Could not load this page');
+        if (failed) break;
+        if (!loading && html.length > 800) break;
+      }
     } catch (e) {
       err = `${e.name}: ${e.message}`;
     }
 
     const html = target ? target.innerHTML : '';
-    // "Rendered" means real content, not an empty shell or a lone spinner.
-    const meaningful = html.length > 800;
+    // "Rendered" means real content, not an empty shell, a spinner, or the
+    // app's error panel.
+    const meaningful = html.length > 800 && !html.includes('Could not load this page');
     const ok = !err && meaningful;
     if (ok) rendered++;
 
-    check(
-      ok,
-      `page renders: ${item.label} (${item.id})`,
-      err ? err.slice(0, 140) : `${html.length} bytes of DOM`,
-    );
+    let detail;
+    if (err) detail = err.slice(0, 140);
+    else if (html.includes('Could not load this page')) {
+      const m = html.match(/<p>([^<]+)<\/p>/);
+      detail = 'page error panel: ' + (m ? m[1] : 'unknown');
+    } else {
+      detail = `${html.length} bytes of DOM`;
+    }
+
+    check(ok, `page renders: ${item.label} (${item.id})`, detail);
   }
 
   console.log(`\n=== RESULT: ${passes.length} passed, ${fails.length} failed ===`);

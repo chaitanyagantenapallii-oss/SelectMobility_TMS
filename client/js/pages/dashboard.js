@@ -153,19 +153,26 @@ const DashboardPage = {
   },
 
   renderCharts(series) {
-    document.getElementById('chart-trips').innerHTML = Chart.bars(
+    // Bail out if the user navigated away while the overview fetch was in flight.
+    const tripsEl = currentEl('chart-trips');
+    const kmEl = currentEl('chart-km');
+    if (!tripsEl || !kmEl) return;
+
+    tripsEl.innerHTML = Chart.bars(
       series.map((s) => ({ label: Fmt.dateShort(s.date), sub: Fmt.weekday(s.date), values: [s.completed, s.cancelled] })),
       { series: ['Completed', 'Cancelled'], colors: ['#1a80c4', '#b91c1c'], height: 215 },
     );
 
-    document.getElementById('chart-km').innerHTML = Chart.line(
+    kmEl.innerHTML = Chart.line(
       series.map((s) => ({ label: Fmt.dateShort(s.date), value: s.km })),
       { color: '#15803d', fill: 'rgba(21,128,61,.13)', height: 215, label: 'km' },
     );
   },
 
   renderRouteLoad(rows) {
-    document.getElementById('route-load').innerHTML = Chart.hbars(
+    const el = currentEl('route-load');
+    if (!el) return;
+    el.innerHTML = Chart.hbars(
       rows.map((r) => ({
         label: `${r.code} \u00B7 ${r.name}`,
         value: r.fillPct,
@@ -180,7 +187,9 @@ const DashboardPage = {
     const active = k.activeVehicles;
     const workshop = k.vehiclesInMaintenance;
     const other = Math.max(0, k.totalVehicles - active - workshop);
-    document.getElementById('fleet-mix').innerHTML = Chart.donut(
+    const el = currentEl('fleet-mix');
+    if (!el) return;
+    el.innerHTML = Chart.donut(
       [
         { label: 'Available', value: active, color: '#15803d' },
         { label: 'In workshop', value: workshop, color: '#f59e0b' },

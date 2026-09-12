@@ -56,9 +56,15 @@ const VehiclesPage = {
     if (this.state.vendorId !== 'all') params.set('vendorId', this.state.vendorId);
 
     const { data } = await Api.get(`/vehicles?${params}`);
-    document.getElementById('v-count').textContent = `${data.length} vehicles in fleet`;
 
-    document.getElementById('v-table').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('v-count');
+    const tableEl = currentEl('v-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} vehicles in fleet`;
+
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No vehicles found',
       emptyText: 'Adjust the filters or add a vehicle to the fleet.',
@@ -356,9 +362,15 @@ const DriversPage = {
     if (this.state.vendorId !== 'all') params.set('vendorId', this.state.vendorId);
 
     const { data } = await Api.get(`/drivers?${params}`);
-    document.getElementById('d-count').textContent = `${data.length} drivers on roster`;
 
-    document.getElementById('d-table').innerHTML = renderTable({
+    // Bail out if the user navigated away while the fetch was in flight.
+    const countEl = currentEl('d-count');
+    const tableEl = currentEl('d-table');
+    if (!countEl || !tableEl) return;
+
+    countEl.textContent = `${data.length} drivers on roster`;
+
+    tableEl.innerHTML = renderTable({
       rows: data,
       emptyTitle: 'No drivers found',
       columns: [
