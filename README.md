@@ -138,8 +138,10 @@ SelectMobility_TMS/
 │           └── reports.js       Report browser and user administration
 │
 ├── tools/
-│   ├── smoke-test.js            End-to-end API test suite
-│   └── verify-frontend.js       Frontend asset verification
+│   ├── smoke-test.js            End-to-end API test suite + contract guard
+│   ├── verify-frontend.js       Frontend asset verification
+│   ├── browser-debug.js         Loads each page in a DOM, reports script errors
+│   └── ui-test.js               Renders every page, asserts real DOM output
 │
 ├── render.yaml                  Render Blueprint (free tier)
 ├── railway.toml                 Railway configuration
@@ -366,18 +368,50 @@ copy is validated before it is ever allowed to overwrite local data.
 
 ## 10. Verification Status
 
-The project ships with two test suites, both passing:
+The project ships with four test suites, all passing:
 
 ```
-API end-to-end suite      : 56 passed, 0 failed
+API end-to-end suite      : 70 passed, 0 failed
 Frontend asset suite      : 37 passed, 0 failed
+Browser console suite     : clean, no runtime errors
+Functional UI suite       : 20 passed, 0 failed (16/16 pages render)
 ```
 
 The API suite covers authentication, credential rejection, unauthenticated
-access blocking, all 11 collections, computed views (manifests, rosters,
+access blocking, all 12 collections, computed views (manifests, rosters,
 compliance radar, utilisation), all 11 reports plus CSV export, create/update/
 delete flows, duplicate and range validation, foreign key validation, trip
 attendance and close-out, role-based access control, and static file hosting.
+
+It also includes a **frontend/backend contract guard**: it extracts every
+collection the frontend requests and asserts a matching route exists. This was
+added after a whole-page failure went undetected — see below.
+
+The browser console suite loads each real page in a DOM and reports any script
+error. The functional UI suite signs in against the live API and drives the
+app's own router through every navigation entry, asserting each page produces
+real DOM. Together they catch the class of bug where a page loads without an
+error but renders nothing.
+
+### Defect found and fixed during browser debugging
+
+Four pages — **Trip Logs, Routes & Stops, Shift Timings and Employees** — were
+completely non-functional, each showing "Could not load this page" because
+`GET /api/shifts` returned 404. Shifts are a first-class collection (every route
+belongs to a shift, and the trip schedule derives from the shift's pickup and
+drop windows) and the frontend loads the shift list as a lookup on those four
+pages, but the route handler had never been written. The collection existed in
+the data model and was read by several backend modules, which is why nothing
+failed loudly.
+
+Fixed by adding `server/src/routes/shifts.js` with full CRUD, time-window
+validation, a dependency check before deletion, and authentication applied
+ahead of its hand-written routes.
+
+**Why every earlier test passed anyway:** the existing suites only exercised the
+collections they already knew about, and none of them rendered a page or checked
+that a frontend call had a backend counterpart. Green tests were not evidence
+the application worked. The contract guard and UI suite now close that gap.
 
 ---
 

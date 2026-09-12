@@ -8,7 +8,11 @@
     "start": "node server/start.js",
     "dev": "node --watch server/start.js",
     "seed": "node server/src/db/seed.js",
-    "reset": "node server/src/db/seed.js --force"
+    "reset": "node server/src/db/seed.js --force",
+    "test": "node tools/smoke-test.js && node tools/verify-frontend.js",
+    "test:browser": "node tools/browser-debug.js .",
+    "test:ui": "node tools/ui-test.js .",
+    "test:all": "npm test && npm run test:browser && npm run test:ui"
   },
   "keywords": [
     "transport",

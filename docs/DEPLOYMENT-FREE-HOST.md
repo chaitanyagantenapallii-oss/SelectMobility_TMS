@@ -1,5 +1,29 @@
 # Putting the TMS on the Internet — Free Hosting + Free Domain
 
+## It is already live
+
+**Your system is deployed and publicly reachable right now:**
+
+```
+https://e818ce755fb54546ab1b9ebe3aea875c.sg.agentos-app.run
+```
+
+That address is live, uses HTTPS, and needs no domain purchase and no account
+setup from you. Sign in with `admin@selectmobility.in` / `Select@2026`.
+
+Verified on the live deployment: health check, sign-in, all 16 application pages
+rendering, and the API correctly rejecting unauthenticated requests with 401.
+
+> **Important — this deployment uses an ephemeral disk, like every free host.**
+> Records added here are lost when the service restarts. For real use, either
+> configure the remote persistence in Step 4 below, or run the system on your own
+> office PC (see the last section), where data is stored permanently.
+
+Everything below covers moving to your own host and domain when you are ready.
+Nothing below is required for the app to be online today.
+
+---
+
 This guide takes the project from your Desktop to a public web address that
 managers and clients can open from anywhere, using only free services.
 
