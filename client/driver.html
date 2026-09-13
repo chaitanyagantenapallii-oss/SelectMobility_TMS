@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<title>Driver &middot; Select Mobility</title>
+<meta name="description" content="Trip manifests, boarding, breakdown and fuel logging for Select Mobility drivers.">
+<meta name="theme-color" content="#1b4ed8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SMI Driver">
+<link rel="manifest" href="/manifest-driver.webmanifest">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="stylesheet" href="/css/mobile.css">
+</head>
+<body class="app">
+
+<header class="appbar">
+  <div>
+    <h1 id="bar-title">My trip</h1>
+    <span class="sub" id="bar-sub">Select Mobility</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="btn-refresh" aria-label="Refresh">&#8635;</button>
+  <button class="icon-btn" id="btn-signout" aria-label="Sign out">&#8594;</button>
+</header>
+
+<div id="offline">No signal &mdash; showing the last information we downloaded.</div>
+
+<main class="wrap" id="view" aria-live="polite">
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+</main>
+
+<nav class="tabbar" role="tablist">
+  <button role="tab" data-tab="today" aria-current="true">
+    <svg viewBox="0 0 24 24"><path d="M4 5h16v11H4z"/><path d="M4 12h16"/><circle cx="8" cy="18.5" r="1.6"/><circle cx="16" cy="18.5" r="1.6"/></svg>
+    Today
+  </button>
+  <button role="tab" data-tab="history" aria-current="false">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>
+    History
+  </button>
+  <button role="tab" data-tab="log" aria-current="false">
+    <svg viewBox="0 0 24 24"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6"/></svg>
+    Log
+  </button>
+  <button role="tab" data-tab="me" aria-current="false">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"/></svg>
+    Me
+  </button>
+</nav>
+
+<script src="/js/api.js"></script>
+<script src="/js/mobile.js"></script>
+<script src="/js/driver-app.js"></script>
+</body>
+</html>

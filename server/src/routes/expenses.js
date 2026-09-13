@@ -10,6 +10,10 @@ const CATEGORIES = ['driver-salary', 'vendor-hire', 'fuel', 'maintenance', 'toll
 
 const base = createResource({
   collection: 'expenses',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'EXP',
   sortField: 'month',
   searchFields: ['description', 'category', 'month'],

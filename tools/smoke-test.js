@@ -126,6 +126,22 @@ function line(label, ok, detail) {
   const tripId = tripsPaged.body.data?.[0]?.id;
   check('trip pagination metadata', Boolean(tripsPaged.body.meta?.total && tripsPaged.body.meta?.totalPages), JSON.stringify(tripsPaged.body.meta));
 
+  /*
+   * A trip that is guaranteed to have a manifest, for the attendance check
+   * further down.
+   *
+   * Taking "the first trip" and hoping it has passengers made that check fail
+   * for reasons that had nothing to do with attendance - it depended on the
+   * order the fixtures happened to come back in. Trips raised from the desk
+   * now auto-book the route's employees, so a trip is only a valid sample if
+   * one of them exists; we pick one deliberately rather than by luck.
+   */
+  const pagedTrips = await req('GET', '/api/trips?pageSize=50');
+  const tripWithManifest = (pagedTrips.body.data || []).find(
+    (t) => Number(t.passengersAllocated || 0) > 0
+  );
+  const manifestTripId = tripWithManifest ? tripWithManifest.id : tripId;
+
   const filtered = await req('GET', '/api/trips?status=completed');
   check('trip status filter', filtered.status === 200 && filtered.body.data.every((t) => t.status === 'completed'), `${filtered.body.data.length} completed`);
 
@@ -194,13 +210,13 @@ function line(label, ok, detail) {
   check('delete vehicle', deleted.status === 200 && deleted.body.ok === true);
 
   console.log('\nTrip operations');
-  const manifest2 = await req('GET', `/api/trips/${tripId}/manifest`);
+  const manifest2 = await req('GET', `/api/trips/${manifestTripId}/manifest`);
   const pax = (manifest2.body.data?.stops || []).flatMap((s) => s.passengers)[0];
   if (pax) {
-    const att = await req('POST', `/api/trips/${tripId}/attendance`, { entries: [{ bookingId: pax.bookingId, boarded: true }] });
+    const att = await req('POST', `/api/trips/${manifestTripId}/attendance`, { entries: [{ bookingId: pax.bookingId, boarded: true }] });
     check('mark attendance', att.status === 200 && att.body.ok === true, `updated=${att.body.updated} boarded=${att.body.boarded}`);
   } else {
-    check('mark attendance', false, 'no passengers found on sample trip');
+    check('mark attendance', false, `no passengers on trip ${manifestTripId} (allocated=${tripWithManifest?.passengersAllocated})`);
   }
 
   const comp = await req('POST', `/api/trips/${tripId}/complete`, { actualKm: 42.5, fuelCost: 520, tollCost: 60 });

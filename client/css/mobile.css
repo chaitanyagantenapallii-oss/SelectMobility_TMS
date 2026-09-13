@@ -1,0 +1,742 @@
+/*
+ * Field and client app styling.
+ *
+ * Two audiences share this file and they have opposite needs:
+ *
+ *   The driver app is used standing up, in the dark, at a kerb, possibly in
+ *   the rain, with one hand. So: large targets, high contrast, few choices
+ *   per screen, and the next action always the most prominent thing present.
+ *
+ *   The client app is used in an office to check a roster or read a
+ *   statement. So: denser information, tables, and normal reading sizes.
+ *
+ * Where they conflict, the driver wins.
+ */
+
+:root {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --border: #d8dee9;
+  --text: #131a26;
+  --text-dim: #5a6577;
+  --brand: #1b4ed8;
+  --brand-dark: #143a9e;
+  --brand-soft: #e7edfd;
+  --ok: #12784a;
+  --ok-soft: #e2f5ea;
+  --warn: #9a6200;
+  --warn-soft: #fdf1da;
+  --danger: #b42318;
+  --danger-soft: #fdeceb;
+  --radius: 14px;
+  --tap: 56px;
+  --shadow: 0 1px 2px rgba(19, 26, 38, 0.06), 0 6px 20px rgba(19, 26, 38, 0.07);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body.app {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+
+/* --- Header ------------------------------------------------------------- */
+
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px;
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(19, 26, 38, 0.18);
+}
+
+.appbar h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.appbar .sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
+  letter-spacing: 0.02em;
+}
+
+.appbar .spacer {
+  flex: 1;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.icon-btn:active {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* --- Layout ------------------------------------------------------------- */
+
+.wrap {
+  padding: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.card.flat {
+  box-shadow: none;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.card h2 .count {
+  float: right;
+  font-weight: 500;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.tiny {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.row.between {
+  justify-content: space-between;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* --- Stat tiles --------------------------------------------------------- */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 14px;
+  box-shadow: var(--shadow);
+}
+
+.stat .k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.stat .v {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+}
+
+.stat .v small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0;
+}
+
+/* --- Badges ------------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+
+.badge.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.badge.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.badge.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.badge.brand {
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.06s ease, background 0.12s ease;
+}
+
+.btn:active {
+  transform: scale(0.985);
+}
+
+.btn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.btn.primary:active {
+  background: var(--brand-dark);
+}
+
+.btn.ok {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+.btn.danger {
+  background: var(--surface);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn.sm {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 14px;
+  width: auto;
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* --- Form fields -------------------------------------------------------- */
+
+.field {
+  margin-bottom: 13px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px; /* 16px stops iOS zooming the page on focus. */
+  font-family: inherit;
+}
+
+.field textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(27, 78, 216, 0.15);
+}
+
+.field .err {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin-top: 5px;
+  min-height: 0;
+}
+
+/* --- Passenger manifest ------------------------------------------------- */
+
+.stop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stop-head:first-child {
+  margin-top: 4px;
+}
+
+.stop-head .name {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-dark);
+}
+
+.stop-head .n {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.pax {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  margin-bottom: 8px;
+}
+
+.pax.done {
+  background: var(--ok-soft);
+  border-color: #a9dcc3;
+}
+
+.pax.noshow {
+  background: var(--surface-2);
+  opacity: 0.72;
+}
+
+.pax .who {
+  flex: 1;
+  min-width: 0;
+}
+
+.pax .who .nm {
+  font-weight: 600;
+  font-size: 15.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pax .who .mt {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.pax .tick {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.pax .tick.on {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+/* --- Trip and list rows ------------------------------------------------- */
+
+.trip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  margin-bottom: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.trip .top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.trip .route {
+  font-weight: 650;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trip .meta {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.trip .bar {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  margin-top: 9px;
+  overflow: hidden;
+}
+
+.trip .bar > i {
+  display: block;
+  height: 100%;
+  background: var(--ok);
+  border-radius: 999px;
+}
+
+/* --- Table (client statements) ------------------------------------------ */
+
+.tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  min-width: 520px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 650;
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+  border-bottom: 0;
+  background: var(--surface-2);
+}
+
+/* --- Empty / error states ----------------------------------------------- */
+
+.empty {
+  text-align: center;
+  padding: 34px 18px;
+  color: var(--text-dim);
+}
+
+.empty .big {
+  font-size: 34px;
+  margin-bottom: 8px;
+  opacity: 0.55;
+}
+
+.empty h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* --- Toast and offline strip -------------------------------------------- */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%) translateY(18px);
+  max-width: min(92vw, 460px);
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #131a26;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 550;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 60;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+#toast.ok {
+  background: var(--ok);
+}
+
+#toast.err {
+  background: var(--danger);
+}
+
+#offline {
+  display: none;
+  padding: 9px 16px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 1px solid #f0dcb4;
+}
+
+body.offline #offline {
+  display: block;
+}
+
+/* --- Tab bar ------------------------------------------------------------ */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-shadow: 0 -2px 14px rgba(19, 26, 38, 0.07);
+}
+
+.tabbar button {
+  flex: 1;
+  min-height: 60px;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 6px 2px;
+}
+
+.tabbar button svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tabbar button[aria-current='true'] {
+  color: var(--brand);
+}
+
+/* --- Misc --------------------------------------------------------------- */
+
+.pill-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 13px 0;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 14px;
+}
+
+.kv:last-child {
+  border-bottom: 0;
+}
+
+.kv .k {
+  color: var(--text-dim);
+}
+
+.kv .v {
+  font-weight: 600;
+  text-align: right;
+}
+
+.spin {
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, #e2e7f0 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+  border-radius: 10px;
+  height: 15px;
+  margin-bottom: 9px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@media (min-width: 620px) {
+  .stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

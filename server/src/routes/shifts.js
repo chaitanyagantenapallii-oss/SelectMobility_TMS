@@ -30,6 +30,10 @@ const TIME_FIELDS = ['pickupStart', 'pickupEnd', 'dropStart', 'dropEnd'];
 
 const base = createResource({
   collection: 'shifts',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'SHF',
   sortField: 'code',
   searchFields: ['code', 'name'],

@@ -24,6 +24,7 @@ const { ApiError, paginate, matchesSearch, nowIso } = require('../utils/helpers'
  * @param {Function} [options.decorate] (record, req) => record  enrich output
  * @param {string} [options.sortField]
  * @param {string} [options.writeRole] role required for writes (default: operations)
+ * @param {string[]} [options.readRole] roles allowed to read (default: any authenticated user)
  */
 function createResource(options) {
   const {
@@ -37,6 +38,7 @@ function createResource(options) {
     afterCreate,
     sortField = 'createdAt',
     writeRole = 'operations',
+    readRole,
   } = options;
 
   const router = express.Router();
@@ -44,10 +46,27 @@ function createResource(options) {
 
   const canWrite = requireRole(writeRole);
 
+  /*
+   * Read gating.
+   *
+   * The resource factory originally authenticated every request but restricted
+   * only writes. That was fine while every role was a member of staff, because
+   * anyone who could sign in was entitled to the fleet's data. It stopped
+   * being fine when the `driver` and `client` roles were introduced: those
+   * accounts exist to serve one phone, and without a read gate a driver token
+   * could pull the entire payroll-adjacent employee list, every fuel expense,
+   * and every incident report out of the API.
+   *
+   * Default is unchanged (any authenticated user) so no route loses access
+   * silently; a route opts in by naming its readRole.
+   */
+  const canRead = readRole ? requireRole(...[].concat(readRole)) : null;
+  const gate = (req, res, next) => (canRead ? canRead(req, res, next) : next());
+
   const enrich = (record, req) => (decorate ? decorate({ ...record }, req) : { ...record });
 
   // LIST ------------------------------------------------------------------
-  router.get('/', (req, res) => {
+  router.get('/', gate, (req, res) => {
     let rows = store.collection(collection).slice();
 
     if (req.query.search) rows = rows.filter((r) => matchesSearch(r, req.query.search, searchFields));
@@ -79,7 +98,7 @@ function createResource(options) {
   });
 
   // READ ------------------------------------------------------------------
-  router.get('/:id', (req, res) => {
+  router.get('/:id', gate, (req, res) => {
     const record = store.find(collection, (r) => r.id === req.params.id);
     if (!record) throw new ApiError(404, `${prefix} record ${req.params.id} was not found.`);
     res.json({ data: enrich(record, req) });

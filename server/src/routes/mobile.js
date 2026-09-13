@@ -103,6 +103,25 @@ router.get('/driver/me', requireRole('driver', 'operations'), (req, res, next) =
       .slice(0, 5);
     const done = store.filter('trips', (t) => t.driverId === driver.id && t.status === 'completed');
 
+    /*
+     * Vehicles this driver may log fuel against.
+     *
+     * A driver is normally tied to one vehicle, but cover drivers rotate, so
+     * the list is built from everything they might plausibly be driving: the
+     * vehicle assigned to them, plus any vehicle on a trip currently assigned
+     * to them. The fuel form shows a picker only when there is a real choice;
+     * with a single vehicle the server can infer it and the driver types less.
+     */
+    const vehicleIds = new Set();
+    if (driver.assignedVehicleId) vehicleIds.add(driver.assignedVehicleId);
+    for (const t of store.filter('trips', (t) => t.driverId === driver.id)) {
+      if (t.vehicleId) vehicleIds.add(t.vehicleId);
+    }
+    const vehicles = [...vehicleIds]
+      .map((id) => store.find('vehicles', (v) => v.id === id))
+      .filter(Boolean)
+      .map((v) => ({ id: v.id, regNo: v.regNo, model: v.model }));
+
     res.json({
       driver: {
         id: driver.id,
@@ -114,6 +133,7 @@ router.get('/driver/me', requireRole('driver', 'operations'), (req, res, next) =
       },
       today: todayTrips.map(tripView),
       upcoming: upcoming.map(tripView),
+      vehicles,
       stats: {
         tripsCompleted: done.length,
         kmDriven: round(done.reduce((a, t) => a + Number(t.actualKm || 0), 0), 1),

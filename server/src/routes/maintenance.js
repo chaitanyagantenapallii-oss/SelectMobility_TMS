@@ -6,6 +6,10 @@ const { today, daysBetween } = require('../utils/helpers');
 
 const router = createResource({
   collection: 'maintenance',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'MNT',
   sortField: 'date',
   searchFields: ['description', 'workshop', 'type', 'status'],

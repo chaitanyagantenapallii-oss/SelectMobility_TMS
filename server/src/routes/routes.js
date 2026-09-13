@@ -8,6 +8,10 @@ const { ApiError } = require('../utils/helpers');
 
 const base = createResource({
   collection: 'routes',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'RTE',
   sortField: 'code',
   searchFields: ['code', 'name'],

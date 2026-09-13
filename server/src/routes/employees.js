@@ -5,6 +5,10 @@ const { store } = require('../db/schema');
 
 const router = createResource({
   collection: 'employees',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'EMP',
   sortField: 'name',
   searchFields: ['name', 'code', 'email', 'phone', 'department', 'stop'],

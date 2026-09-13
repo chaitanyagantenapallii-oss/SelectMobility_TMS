@@ -8,6 +8,10 @@ const { ApiError, today } = require('../utils/helpers');
 
 const base = createResource({
   collection: 'incidents',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'INC',
   sortField: 'date',
   searchFields: ['description', 'type', 'actionTaken'],

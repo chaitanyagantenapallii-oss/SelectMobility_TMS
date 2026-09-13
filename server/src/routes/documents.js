@@ -8,6 +8,10 @@ const { daysBetween, today } = require('../utils/helpers');
 
 const base = createResource({
   collection: 'documents',
+  // Staff-only. The driver and client apps read through /api/mobile, which
+  // scopes every row to the caller; these collections carry other
+  // organisations' staff and the company's cost base.
+  readRole: ['admin', 'operations', 'viewer'],
   prefix: 'DOC',
   sortField: 'expiryDate',
   searchFields: ['title', 'number', 'issuedBy', 'type'],

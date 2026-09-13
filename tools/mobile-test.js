@@ -110,14 +110,27 @@ async function signIn(email, password) {
   /* -- Boarding + close-out ---------------------------------------------- */
   console.log('\nBoarding and close-out');
 
-  // A trip the driver can actually work on. Prefer whatever is already open,
-  // then anything scheduled for today, then the next upcoming run - the seed
-  // dataset marks most recent trips completed, so a fresh run may leave nothing
-  // open. A test that silently skips its assertions is worse than no test.
-  let openTrip = (dtrips.body.data || []).find((t) => t.status === 'in-progress')
-    || (dtrips.body.data || []).find((t) => t.status === 'scheduled')
-    || (dme.body.today || []).find((t) => t.status === 'in-progress' || t.status === 'scheduled')
-    || (dme.body.upcoming || []).find((t) => t.status === 'scheduled');
+  /*
+   * A trip the driver can actually work on.
+   *
+   * The state is deliberately re-read here rather than reused from `dtrips` /
+   * `dme` above. Those payloads were captured at the start of the run, and a
+   * previous run of this very suite may have completed every open trip since.
+   * Asserting against a stale snapshot makes the suite pass or fail based on
+   * history rather than on the code, which is worse than useless.
+   *
+   * A test that silently skips its assertions is worse than no test, so if
+   * nothing is open we raise one through the same desk endpoint the office
+   * uses, then look it up by id.
+   */
+  const currentDme = await req('GET', '/api/mobile/driver/me', { token: driverToken });
+  const currentTrips = await req('GET', '/api/mobile/driver/trips', { token: driverToken });
+
+  let openTrip =
+    (currentTrips.body.data || []).find((t) => t.status === 'in-progress') ||
+    (currentTrips.body.data || []).find((t) => t.status === 'scheduled') ||
+    (currentDme.body.today || []).find((t) => t.status === 'in-progress' || t.status === 'scheduled') ||
+    (currentDme.body.upcoming || []).find((t) => t.status === 'scheduled');
 
   if (!openTrip) {
     const routes = await req('GET', '/api/routes', { token: adminToken });
@@ -129,8 +142,8 @@ async function signIn(email, password) {
           date: new Date().toISOString().slice(0, 10),
           shiftId: route.shiftId,
           routeId: route.id,
-          vehicleId: dme.body.driver.assignedVehicleId || null,
-          driverId: dme.body.driver.id,
+          vehicleId: (currentDme.body.vehicles || [])[0]?.id || route.vehicleId || null,
+          driverId: currentDme.body.driver.id,
           status: 'scheduled',
           plannedKm: route.distanceKm * 2,
         },
@@ -311,6 +324,40 @@ async function signIn(email, password) {
     token: driverToken, body: { name: 'Injected', routeId: 'RTE0001' },
   });
   check(driverWrite.status === 403, 'driver cannot create employees', `status ${driverWrite.status}`);
+
+  /*
+   * The desk collections must be unreadable to the mobile roles.
+   *
+   * This is the mirror of the block below, and it guards a hole that existed
+   * until it was found here: the resource factory authenticated every request
+   * but restricted only writes, so a driver token could read the whole
+   * employee roster (every organisation's staff, with phone numbers and
+   * emergency contacts), the full expense ledger, and every incident report.
+   *
+   * The mobile roles get their own scoped endpoints under /api/mobile and have
+   * no business reading these, so a 403 is the only correct answer for each.
+   */
+  const deskCollections = [
+    'employees', 'vehicles', 'routes', 'expenses',
+    'incidents', 'vendors', 'documents', 'fuel', 'maintenance',
+  ];
+  const leakedReads = [];
+  for (const collection of deskCollections) {
+    for (const [who, token] of [['driver', driverToken], ['client', clientToken]]) {
+      const res = await req('GET', `/api/${collection}`, { token });
+      if (res.status !== 403) leakedReads.push(`${who} read ${collection} (${res.status})`);
+    }
+  }
+  check(
+    leakedReads.length === 0,
+    'mobile roles cannot read any desk collection',
+    leakedReads.slice(0, 4).join('; ') || `${deskCollections.length * 2} requests, all refused`
+  );
+
+  // The gate must not have locked staff out - admin still reads everything.
+  const adminStillWorks = await req('GET', '/api/employees', { token: adminToken });
+  check(adminStillWorks.status === 200, 'the read gate does not block staff',
+    `admin got ${adminStillWorks.status} with ${(adminStillWorks.body.data || []).length} rows`);
 
   console.log(`\n=== RESULT: ${passes.length} passed, ${fails.length} failed ===\n`);
   if (fails.length) {
