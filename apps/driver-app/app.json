@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1b4ed8"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "in.selectmobility.driver",
@@ -28,10 +30,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1b4ed8"
       },
-      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "extra": {
-      "apiOrigin": "https://e818ce755fb54546ab1b9ebe3aea875c.sg.agentos-app.run"
-    }
+      "apiOrigin": "https://e818ce755fb54546ab1b9ebe3aea875c.sg.agentos-app.run",
+      "eas": {
+        "projectId": "8febcb3b-42d3-4987-8637-dcb3c2991e48"
+      }
+    },
+    "owner": "selectmobility"
   }
 }

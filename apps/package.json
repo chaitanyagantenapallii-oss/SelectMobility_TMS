@@ -6,7 +6,8 @@
   "license": "UNLICENSED",
   "workspaces": [
     "driver-app",
-    "client-app"
+    "client-app",
+    "mobile-shared"
   ],
   "scripts": {
     "start:driver": "npm --prefix driver-app start",
