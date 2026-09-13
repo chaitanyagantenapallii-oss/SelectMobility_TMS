@@ -193,6 +193,81 @@ async function login(email, password) {
   const client = await login('client@selectmobility.in', 'Client@2026');
   check(Boolean(client.token), 'client signs in', client.user && client.user.role);
 
+  /*
+   * --- Establish the open-trip fixture before any page loads ----------------
+   *
+   * Find a trip that is genuinely open, or raise one.
+   *
+   * The seed data has every one of today's trips already completed, so relying
+   * on the fixtures to supply an open trip would make the boarding section skip
+   * itself and quietly prove nothing. A test that silently skips its real
+   * assertions is worse than no test, so we create the precondition we need
+   * through the same desk endpoint the office uses.
+   *
+   * This runs *before* the driver page is loaded, and that ordering is the
+   * whole point. The page paints its Today tab once, at boot. Raising the trip
+   * afterwards leaves the page showing what it legitimately fetched a moment
+   * earlier - correct behaviour, not a bug - but it made this suite fail its
+   * first run against a cold database and pass on every rerun, because the
+   * reruns found the trip the previous run had left behind. Setting the
+   * fixture up here removes that dependency on test history.
+   */
+  const findOpenTrip = async () => {
+    const res = await fetch(`${ORIGIN}/api/mobile/driver/me`, {
+      headers: { Authorization: `Bearer ${driver.token}` },
+    });
+    const body = await res.json();
+    return [...(body.today || []), ...(body.upcoming || [])].find(
+      (t) => t.status === 'scheduled' || t.status === 'in-progress'
+    );
+  };
+
+  let openTrip = await findOpenTrip();
+
+  if (!openTrip) {
+    const admin = await login('admin@selectmobility.in', 'Select@2026');
+    const auth = { Authorization: `Bearer ${admin.token}` };
+
+    // Take the driver identity from the mobile API itself, not from the desk's
+    // driver list. The desk list is sorted independently, so its first row is
+    // usually a different driver - and a trip assigned to somebody else is
+    // invisible to this driver, which made the trip look like it had not been
+    // created at all.
+    const who = await (await fetch(`${ORIGIN}/api/mobile/driver/me`, {
+      headers: { Authorization: `Bearer ${driver.token}` },
+    })).json();
+
+    const routes = await (await fetch(`${ORIGIN}/api/routes?limit=50`, { headers: auth })).json();
+    const allRoutes = routes.data || [];
+    // The route must belong to the driver's own shift, otherwise the desk
+    // rejects the pairing as inconsistent.
+    const driverTrips = await (await fetch(`${ORIGIN}/api/mobile/driver/trips`, {
+      headers: { Authorization: `Bearer ${driver.token}` },
+    })).json();
+    const knownShiftId = (driverTrips.data || [])[0]?.shift?.id;
+    const route = allRoutes.find((r) => r.shiftId === knownShiftId) || allRoutes[0];
+
+    if (who.driver && route) {
+      const created = await fetch(`${ORIGIN}/api/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...auth },
+        body: JSON.stringify({
+          date: new Date().toISOString().slice(0, 10),
+          routeId: route.id,
+          shiftId: route.shiftId,
+          vehicleId: (who.vehicles || [])[0]?.id || route.vehicleId || undefined,
+          driverId: who.driver.id,
+          status: 'scheduled',
+          plannedKm: (route.distanceKm || 30) * 2,
+        }),
+      });
+      const body = await created.json().catch(() => ({}));
+      check(created.ok, 'an open trip can be raised for the test',
+        created.ok ? (body.data || body).id : `status ${created.status}: ${body.message || ''}`);
+      openTrip = await findOpenTrip();
+    }
+  }
+
   // =========================================================================
   // DRIVER APP
   // =========================================================================
@@ -251,71 +326,8 @@ async function login(email, password) {
   // --- Real write: board a passenger ---------------------------------------
   console.log('\nDriver write path');
 
-  /*
-   * Find a trip that is genuinely open, or raise one.
-   *
-   * The seed data has every one of today's trips already completed, so relying
-   * on the fixtures to supply an open trip would make this whole section skip
-   * itself and quietly prove nothing. A test that silently skips its real
-   * assertions is worse than no test, so we create the precondition we need
-   * through the same desk endpoint the office uses.
-   */
-  const findOpenTrip = async () => {
-    const res = await fetch(`${ORIGIN}/api/mobile/driver/me`, {
-      headers: { Authorization: `Bearer ${driver.token}` },
-    });
-    const body = await res.json();
-    return [...(body.today || []), ...(body.upcoming || [])].find(
-      (t) => t.status === 'scheduled' || t.status === 'in-progress'
-    );
-  };
-
-  let openTrip = await findOpenTrip();
-
-  if (!openTrip) {
-    const admin = await login('admin@selectmobility.in', 'Select@2026');
-    const auth = { Authorization: `Bearer ${admin.token}` };
-
-    // Take the driver identity from the mobile API itself, not from the desk's
-    // driver list. The desk list is sorted independently, so its first row is
-    // usually a different driver - and a trip assigned to somebody else is
-    // invisible to this driver, which made the trip look like it had not been
-    // created at all.
-    const who = await (await fetch(`${ORIGIN}/api/mobile/driver/me`, {
-      headers: { Authorization: `Bearer ${driver.token}` },
-    })).json();
-
-    const routes = await (await fetch(`${ORIGIN}/api/routes?limit=50`, { headers: auth })).json();
-    const allRoutes = routes.data || [];
-    // The route must belong to the driver's own shift, otherwise the desk
-    // rejects the pairing as inconsistent.
-    const driverTrips = await (await fetch(`${ORIGIN}/api/mobile/driver/trips`, {
-      headers: { Authorization: `Bearer ${driver.token}` },
-    })).json();
-    const knownShiftId = (driverTrips.data || [])[0]?.shift?.id;
-    const route = allRoutes.find((r) => r.shiftId === knownShiftId) || allRoutes[0];
-
-    if (who.driver && route) {
-      const created = await fetch(`${ORIGIN}/api/trips`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...auth },
-        body: JSON.stringify({
-          date: new Date().toISOString().slice(0, 10),
-          routeId: route.id,
-          shiftId: route.shiftId,
-          vehicleId: (who.vehicles || [])[0]?.id || route.vehicleId || undefined,
-          driverId: who.driver.id,
-          status: 'scheduled',
-          plannedKm: (route.distanceKm || 30) * 2,
-        }),
-      });
-      const body = await created.json().catch(() => ({}));
-      check(created.ok, 'an open trip can be raised for the test',
-        created.ok ? (body.data || body).id : `status ${created.status}: ${body.message || ''}`);
-      openTrip = await findOpenTrip();
-    }
-  }
-
+  // openTrip was established before this page was loaded - see the fixture
+  // block above the driver app section for why the ordering matters.
   if (!openTrip) {
     check(false, 'a driver has an open trip to work with', 'none found and none could be created');
   } else {

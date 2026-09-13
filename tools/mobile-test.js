@@ -12,7 +12,20 @@
  * Usage: node tools/mobile-test.js [baseUrl]
  */
 
-const BASE = process.argv[2] || 'http://127.0.0.1:4000';
+/*
+ * Accept the origin from either positional slot.
+ *
+ * mobile-test and pwa-test both take a target origin, but pwa-test reads
+ * argv[3] (it also takes a directory as argv[2]) while this one historically
+ * read argv[2]. Running the pair by hand against a deployment therefore sent
+ * this suite a directory path, and because a malformed base URL makes every
+ * request fail at the socket, the whole run reported "status 0" - which reads
+ * like an authentication or server outage rather than a wrong argument.
+ * Taking whichever slot holds a URL removes that trap for good.
+ */
+const cliArgs = process.argv.slice(2).filter((a) => !a.endsWith('.js'));
+const cliOrigin = cliArgs.find((a) => /^https?:\/\//i.test(a));
+const BASE = cliOrigin || process.env.TMS_BASE || 'http://127.0.0.1:4000';
 
 let passes = [];
 let fails = [];
