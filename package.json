@@ -14,7 +14,8 @@
     "test:ui": "node tools/ui-test.js .",
     "test:mobile": "node tools/mobile-test.js",
     "test:pwa": "node tools/pwa-test.js .",
-    "test:all": "npm test && npm run test:mobile && npm run test:pwa && npm run test:browser && npm run test:ui"
+    "test:rn": "node tools/check-rn-syntax.js .",
+    "test:all": "npm test && npm run test:mobile && npm run test:pwa && npm run test:rn && npm run test:browser && npm run test:ui"
   },
   "keywords": [
     "transport",

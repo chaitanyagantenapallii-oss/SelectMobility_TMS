@@ -1,0 +1,19 @@
+{
+  "name": "smi-tms-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Driver and client apps for the Select Mobility transport management system",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "driver-app",
+    "client-app"
+  ],
+  "scripts": {
+    "start:driver": "npm --prefix driver-app start",
+    "start:client": "npm --prefix client-app start",
+    "android:driver": "npm --prefix driver-app run android",
+    "android:client": "npm --prefix client-app run android",
+    "build:driver": "npm --prefix driver-app run build:apk",
+    "build:client": "npm --prefix client-app run build:apk"
+  }
+}

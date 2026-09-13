@@ -11,3 +11,15 @@ logs/
 *.log
 .DS_Store
 Thumbs.db
+
+# Expo / React Native build artefacts
+# The app sources in apps/ are committed; only generated output is ignored.
+apps/*/node_modules/
+apps/*/.expo/
+apps/*/dist/
+apps/*/android/
+apps/*/ios/
+apps/*/*.apk
+apps/*/*.aab
+apps/*/*.ipa
+apps/node_modules/
