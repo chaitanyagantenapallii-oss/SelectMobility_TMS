@@ -394,6 +394,10 @@ function TrackingBanner({ tracking }) {
 function ManifestScreen({ tripId, onClose }) {
   const state = useLoader(useCallback(() => driverApi.trip(tripId), [tripId]));
   const [busyBooking, setBusyBooking] = useState(null);
+  const [acceptBusy, setAcceptBusy] = useState(false);
+  const trip = state.data?.trip || null;
+  const running = trip?.status === 'in-progress';
+  const tracking = useTripTracking(running, tripId);
 
   /**
    * Mark one passenger. The server is told first and the UI follows, never
@@ -440,8 +444,6 @@ function ManifestScreen({ tripId, onClose }) {
   });
 
   const open = t.status === 'scheduled';
-  const running = t.status === 'in-progress';
-  const [acceptBusy, setAcceptBusy] = useState(false);
 
   const acceptAssignment = async () => {
     setAcceptBusy(true);
@@ -484,8 +486,6 @@ function ManifestScreen({ tripId, onClose }) {
    * The hook starts reporting when `running` flips true and stops the moment
    * the driver completes the trip or leaves this screen.
    */
-  const tracking = useTripTracking(running, tripId);
-
   return (
     <Screen state={state}>
       <Card>
