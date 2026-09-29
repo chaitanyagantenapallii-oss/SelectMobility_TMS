@@ -27,7 +27,7 @@
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"]
     },
     "extra": {
-      "apiOrigin": "https://select-mobility-tms.onrender.com"
+      "apiOrigin": "https://tms.cdsinfo.in"
     }
   }
 }
