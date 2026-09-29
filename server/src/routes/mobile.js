@@ -952,7 +952,12 @@ router.post('/client/booking-requests', requireRole('client', 'operations'), (re
     if (!pickup || !drop) throw new ApiError(400, 'Pickup and drop points are required.');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new ApiError(400, 'Choose a valid travel date.');
 
-    const employees = store.filter('employees', (e) => e.organisation === org && e.status === 'active').slice(0, count);
+    const orgEmployees = store.filter('employees', (e) => e.organisation === org && e.status === 'active');
+    const requestedEmployee = body.employeeId || body.staffCode;
+    const selectedEmployee = requestedEmployee
+      ? orgEmployees.find((e) => e.id === String(requestedEmployee) || e.code === String(requestedEmployee))
+      : null;
+    const employees = selectedEmployee ? [selectedEmployee] : orgEmployees.slice(0, count);
     const route = employees[0]?.routeId
       ? store.find('routes', (r) => r.id === employees[0].routeId)
       : store.find('routes', (r) => r.status !== 'inactive');
