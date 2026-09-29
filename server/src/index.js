@@ -11,7 +11,9 @@ const express = require('express');
 const config = require('./config');
 const schema = require('./db/schema');
 const { store, initStore, seedIfEmpty } = schema;
-const { isEnabled: remoteBackupEnabled } = require('./db/remote-backup');
+const d1Backup = require('./db/d1-backup');
+const s3Backup = require('./db/remote-backup');
+const remoteBackupEnabled = () => d1Backup.isEnabled() || s3Backup.isEnabled();
 const { securityHeaders, requestLogger, notFound, errorHandler } = require('./middleware/common');
 
 const authRoutes = require('./routes/auth');
@@ -30,6 +32,10 @@ const vendorRoutes = require('./routes/vendors');
 const expenseRoutes = require('./routes/expenses');
 const reportRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
+const organisationRoutes = require('./routes/organisations');
+const tripRequestRoutes = require('./routes/trip-requests');
+const { router: trackingRoutes } = require('./routes/tracking');
+const settingsRoutes = require('./routes/settings');
 const mobileRoutes = require('./routes/mobile');
 
 const app = express();
@@ -73,13 +79,54 @@ api.use('/vendors', vendorRoutes);
 api.use('/expenses', expenseRoutes);
 api.use('/reports', reportRoutes);
 api.use('/users', userRoutes);
+api.use('/organisations', organisationRoutes);
+api.use('/trip-requests', tripRequestRoutes);
+api.use('/tracking', trackingRoutes);
+api.use('/settings', settingsRoutes);
 api.use('/mobile', mobileRoutes);
 
 app.use('/api', api);
 app.use('/api', notFound);
 
 // --- Static client ---------------------------------------------------------
-app.use(express.static(config.clientDir, { extensions: ['html'] }));
+app.get('/:tenant/login.html', (req, res, next) => {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(req.params.tenant)) return next();
+  const tenant = store.find('organisations', (o) => String(o.slug || '').toLowerCase() === req.params.tenant.toLowerCase());
+  // SMIPL is the operator namespace, not a customer organisation row.
+  if (!tenant && req.params.tenant.toLowerCase() !== 'smipl') return next();
+  return res.sendFile(path.join(config.clientDir, 'smipl', 'login.html'));
+});
+app.get('/:tenant/login', (req, res, next) => {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(req.params.tenant)) return next();
+  const tenant = store.find('organisations', (o) => String(o.slug || '').toLowerCase() === req.params.tenant.toLowerCase());
+  if (!tenant && req.params.tenant.toLowerCase() !== 'smipl') return next();
+  return res.sendFile(path.join(config.clientDir, 'smipl', 'login.html'));
+});
+app.get('/SaaS/dashboard.html', (req, res) => res.sendFile(path.join(config.clientDir, 'platform.html')));
+app.get('/SaaS/dashboard', (req, res) => res.sendFile(path.join(config.clientDir, 'platform.html')));
+app.get('/:tenant/:page.html', (req, res, next) => {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(req.params.tenant)) return next();
+  const pages = new Set(['dashboard', 'client', 'driver', 'staff']);
+  if (!pages.has(req.params.page)) return next();
+  const tenant = store.find('organisations', (o) => String(o.slug || '').toLowerCase() === req.params.tenant.toLowerCase());
+  if (!tenant && req.params.tenant.toLowerCase() !== 'smipl') return next();
+  return res.sendFile(path.join(config.clientDir, `${req.params.page}.html`));
+});
+app.get('/:tenant/:page', (req, res, next) => {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(req.params.tenant)) return next();
+  const pages = new Set(['dashboard', 'trips', 'manifests', 'requests', 'tracking', 'routes', 'shifts', 'vehicles', 'drivers', 'employees', 'companies', 'vendors', 'maintenance', 'fuel', 'expenses', 'documents', 'incidents', 'reports', 'users', 'billing', 'commercials']);
+  if (!pages.has(req.params.page)) return next();
+  const tenant = store.find('organisations', (o) => String(o.slug || '').toLowerCase() === req.params.tenant.toLowerCase());
+  if (!tenant && req.params.tenant.toLowerCase() !== 'smipl') return next();
+  return res.sendFile(path.join(config.clientDir, 'dashboard.html'));
+});
+app.use(express.static(config.clientDir, {
+  extensions: ['html'],
+  setHeaders(res, filePath) {
+    // UI assets change with operational fixes; avoid serving stale map code.
+    if (/\.(html|js|css)$/i.test(filePath)) res.setHeader('Cache-Control', 'no-store');
+  },
+}));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) return next();
   return res.sendFile(path.join(config.clientDir, 'index.html'));

@@ -1,0 +1,7 @@
+tunnel: 0deed839-40e8-43bf-9d95-10542e33aec8
+credentials-file: C:\\Users\\Chait\\.cloudflared\\0deed839-40e8-43bf-9d95-10542e33aec8.json
+
+ingress:
+  - hostname: tms.cdsinfo.in
+    service: http://127.0.0.1:4000
+  - service: http_status:404

@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light">
-  <title>Sign In &middot; Select Mobility TMS</title>
+  <title>Sign In &middot; PeoplePilot TMS</title>
   <link rel="stylesheet" href="/css/app.css">
-  <link rel="stylesheet" href="/css/login.css">
+  <link rel="stylesheet" href="/css/login.css?v=smipl-11">
 </head>
-<body class="login-body">
+<body class="login-body peoplepilot-login">
 
 <div class="login-shell">
   <section class="login-brand">
@@ -19,18 +19,20 @@
     </div>
 
     <header class="login-logo">
-      <div class="mark" aria-hidden="true">&#128652;</div>
-      <div>
-        <div class="name">Select Mobility India</div>
-        <div class="tagline">Transport Management System</div>
+      <div class="brand-lockup">
+        <img class="smipl-logo" src="/assets/peoplepilot-logo-transparent.png" alt="PeoplePilot">
+        <div class="brand-divider" aria-hidden="true"></div>
+        <div>
+          <div class="name">PeoplePilot TMS Platform</div>
+          <div class="tagline">Employee transport management</div>
+        </div>
       </div>
     </header>
 
     <div class="login-copy">
-      <h2>Employee transportation, run like clockwork.</h2>
+      <h2>Transport operations, under control.</h2>
       <p>
-        One console for your entire staff shuttle operation &mdash; fleet, drivers, routes,
-        shift rosters, passenger manifests and statutory compliance.
+        A single operational desk for fleet, drivers, routes, rosters and compliance.
       </p>
       <ul class="login-features">
         <li><span aria-hidden="true">&#128666;</span><span>Live fleet and driver availability across vendors and owned vehicles</span></li>
@@ -42,7 +44,7 @@
     </div>
 
     <footer class="login-legal">
-      &copy; <span id="year"></span> Select Mobility India Private Limited &middot; Internal use only
+      &copy; <span id="year"></span> PeoplePilot by Chaitanya Digital Services &middot; Secure workspace access
     </footer>
   </section>
 
@@ -50,7 +52,7 @@
     <div class="login-card">
       <div class="login-head">
         <h1>Sign in</h1>
-        <p class="sub">Use your operational account to access the transport desk.</p>
+        <p class="sub">Sign in to manage client organisations and their transport workspaces.</p>
       </div>
 
       <form id="login-form" novalidate autocomplete="on">
@@ -96,7 +98,7 @@
         </div>
 
         <button type="submit" class="login-submit" id="login-btn">
-          <span class="lbl">Sign in to transport desk</span>
+          <span class="lbl">Sign in to PeoplePilot platform</span>
           <span class="spin" aria-hidden="true"></span>
         </button>
       </form>
@@ -107,9 +109,9 @@
           <button type="button" class="dc-toggle" id="dc-toggle" aria-expanded="false">Show</button>
         </div>
         <div class="dc-body" id="dc-body" hidden>
-          <button type="button" class="dc-item" data-email="admin@selectmobility.in" data-pass="Select@2026">
-            <span class="dc-role">Administrator</span>
-            <span class="dc-mail">admin@selectmobility.in</span>
+          <button type="button" class="dc-item" data-email="admin@cdsinfo.in" data-pass="Chetan@1264">
+            <span class="dc-role">Platform administrator</span>
+            <span class="dc-mail">admin@cdsinfo.in</span>
             <span class="dc-use">Use &rarr;</span>
           </button>
           <button type="button" class="dc-item" data-email="ops@selectmobility.in" data-pass="Ops@2026">
@@ -119,11 +121,12 @@
           </button>
         </div>
       </div>
+      <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#68798a"><a href="/login.html?fresh=1" style="color:#0d527c;font-weight:700;text-decoration:none">Use a different account in this tab</a></p>
     </div>
   </section>
 </div>
 
-<script src="/js/api.js"></script>
-<script src="/js/login.js"></script>
+<script src="/js/api.js?v=tab-session-2"></script>
+<script src="/js/login.js?v=peoplepilot-platform-2"></script>
 </body>
 </html>

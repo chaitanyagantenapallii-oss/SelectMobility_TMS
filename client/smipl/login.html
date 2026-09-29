@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Sign In &middot; Select Mobility TMS</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/login.css?v=smipl-13">
+</head>
+<body class="login-body smipl-login">
+
+<div class="login-shell">
+  <section class="login-brand">
+    <div class="aurora" aria-hidden="true">
+      <span class="blob b1"></span>
+      <span class="blob b2"></span>
+      <span class="blob b3"></span>
+    </div>
+
+    <header class="login-logo">
+      <div class="brand-lockup">
+        <img class="smipl-logo" src="/assets/smipl-logo-transparent-v2.png" alt="Select Mobility India Private Limited">
+        <div class="brand-divider" aria-hidden="true"></div>
+        <div>
+          <div class="name">Transport Management System</div>
+          <div class="tagline">Operations control centre</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="login-copy">
+      <h2>Transport operations, under control.</h2>
+      <p>
+        A single operational desk for fleet, drivers, routes, rosters and compliance.
+      </p>
+      <ul class="login-features">
+        <li><span aria-hidden="true">&#128666;</span><span>Live fleet and driver availability across vendors and owned vehicles</span></li>
+        <li><span aria-hidden="true">&#128506;</span><span>Route and shift planning with stop-wise employee rosters</span></li>
+        <li><span aria-hidden="true">&#9989;</span><span>Trip manifests with digital boarding and no-show tracking</span></li>
+        <li><span aria-hidden="true">&#128202;</span><span>Cost, fuel and maintenance analytics with one-click CSV exports</span></li>
+        <li><span aria-hidden="true">&#128220;</span><span>Insurance, permit, PUC and fitness expiry alerts</span></li>
+      </ul>
+    </div>
+
+    <footer class="login-legal">
+      &copy; <span id="year"></span> Select Mobility India Private Limited &middot; Internal use only
+    </footer>
+  </section>
+
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="card-accent" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="login-head">
+        <div class="panel-kicker"><span class="status-dot"></span> SMIPL transport desk</div>
+        <h1>Sign in</h1>
+        <p class="sub">Use your operational account to access the transport desk.</p>
+      </div>
+
+      <form id="login-form" novalidate autocomplete="on">
+        <div class="lf" id="f-email">
+          <label for="email">Email address</label>
+          <div class="lf-wrap">
+            <span class="lf-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5"/><path d="m3 7 8.1 5.6a1.6 1.6 0 0 0 1.8 0L21 7"/></svg>
+            </span>
+            <input type="email" id="email" name="email" autocapitalize="off" spellcheck="false"
+                   autocomplete="username" placeholder="you@selectmobility.in" required
+                   aria-describedby="err-email">
+          </div>
+          <div class="lf-msg" id="err-email" role="alert"></div>
+        </div>
+
+        <div class="lf" id="f-password">
+          <div class="lf-row">
+            <label for="password">Password</label>
+            <button type="button" class="lf-toggle" id="pw-toggle" aria-pressed="false">Show</button>
+          </div>
+          <div class="lf-wrap">
+            <span class="lf-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="10.5" width="17" height="10" rx="2.5"/><path d="M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none"/></svg>
+            </span>
+            <input type="password" id="password" name="password" autocomplete="current-password"
+                   placeholder="Enter your password" required aria-describedby="err-password">
+          </div>
+          <div class="lf-msg" id="err-password" role="alert"></div>
+        </div>
+
+        <div class="lf-options">
+          <label class="lf-check">
+            <input type="checkbox" id="remember" checked>
+            <span>Keep me signed in</span>
+          </label>
+          <span class="lf-caps" id="caps-warn" hidden>Caps Lock is on</span>
+        </div>
+
+        <div class="login-error" id="login-error" role="alert" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5"/><circle cx="12" cy="16.4" r="1" fill="currentColor" stroke="none"/></svg>
+          <span id="login-error-text"></span>
+        </div>
+
+        <button type="submit" class="login-submit" id="login-btn">
+          <span class="lbl">Sign in to transport desk</span>
+          <span class="spin" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <div class="login-assurance" aria-label="Secure workspace access">
+        <span class="assurance-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v5c0 5-3.3 8.2-8 10-4.7-1.8-8-5-8-10V6l8-3Z"/><path d="m8.7 12 2.1 2.1 4.5-4.5"/></svg>
+        </span>
+        <span><strong>Protected operations access</strong><small>For authorised Select Mobility users only</small></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="/js/api.js?v=tab-session-3"></script>
+<script src="/js/login.js?v=smipl-login-6"></script>
+</body>
+</html>

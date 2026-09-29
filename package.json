@@ -15,6 +15,10 @@
     "test:mobile": "node tools/mobile-test.js",
     "test:pwa": "node tools/pwa-test.js .",
     "test:rn": "node tools/check-rn-syntax.js .",
+    "cloudflare:check-r2": "node tools/check-cloudflare-r2.js",
+    "build:driver": "node tools/build-apk.js driver",
+    "build:client": "node tools/build-apk.js client",
+    "build:employee": "node tools/build-apk.js employee",
     "test:all": "npm test && npm run test:mobile && npm run test:pwa && npm run test:rn && npm run test:browser && npm run test:ui"
   },
   "keywords": [

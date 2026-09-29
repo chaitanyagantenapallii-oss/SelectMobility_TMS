@@ -8,6 +8,28 @@ const { today, daysBetween, round, sum } = require('../utils/helpers');
 const router = express.Router();
 router.use(authenticate);
 
+router.get('/billing', (_req, res) => {
+  const invoices = store.collection('invoices');
+  const vehicles = store.collection('vehicles').filter((v) => v.status !== 'inactive');
+  const current = invoices.find((i) => i.organisation === 'Bharat Forge Ltd' && i.period === today().slice(0, 7)) || invoices.find((i) => i.organisation === 'Bharat Forge Ltd');
+  res.json({ data: { vendorRate: 48000, clientRate: 60000, extraVendorTrip: 600, extraClientTrip: 900, operatingDays: 22, includedTripsPerVehicle: 66, activeVehicles: vehicles.length, clientBase: vehicles.length * 60000, vendorBase: vehicles.length * 48000, grossContribution: vehicles.length * 12000, gstRate: 18, invoices, current } });
+});
+
+router.get('/commercials', (_req, res) => res.json({ data: store.collection('commercials') }));
+router.post('/commercials', (req, res) => {
+  const b = req.body || {};
+  const type = b.type === 'vendor' ? 'vendor' : 'client';
+  const monthlyRate = Number(b.monthlyRate || 0);
+  const vendorCost = Number(b.vendorCost || 0);
+  if (!b.name || !b.organisation) return res.status(400).json({ error: 'Name and organisation are required.' });
+  if (type === 'client' && !monthlyRate) return res.status(400).json({ error: 'Client monthly rate is required.' });
+  if (type === 'vendor' && !vendorCost) return res.status(400).json({ error: 'Vendor monthly payable rate is required.' });
+  const id = `COM${String(store.collection('commercials').length + 1).padStart(4, '0')}`;
+  const record = { id, name: String(b.name), type, organisation: String(b.organisation), vehicleType: String(b.vehicleType || 'sedan'), operatingDays: Number(b.operatingDays || 22), includedTripsPerDay: Number(b.includedTripsPerDay || 3), monthlyRate, extraTripRate: Number(b.extraTripRate || 0), vendorCost, vendorExtraTripRate: Number(b.vendorExtraTripRate || 0), gstRate: Number(b.gstRate || 18), status: String(b.status || 'active'), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  store.insert('commercials', record);
+  res.status(201).json({ data: record });
+});
+
 /** GET /api/dashboard/overview - headline KPIs plus the day's operations board. */
 router.get('/overview', (_req, res) => {
   const now = today();
@@ -80,6 +102,27 @@ router.get('/overview', (_req, res) => {
   const monthFuel = store.collection('fuel').filter((f) => String(f.date || '').startsWith(monthPrefix));
   const monthMaint = store.collection('maintenance').filter((m) => String(m.date || '').startsWith(monthPrefix));
 
+  // A single actionable queue connects the modules into one operating rhythm.
+  // It is intentionally ordered by urgency rather than by record type.
+  const workflowQueue = [];
+  store.collection('serviceRequests').filter((r) => r.status === 'pending').slice(0, 8).forEach((r) => workflowQueue.push({
+    id: r.id, type: 'request', priority: r.priority || 'normal', title: r.subject || 'Client transport request',
+    detail: `${r.organisation || 'Client'} · awaiting desk decision`, action: 'requests', actionLabel: 'Review request',
+  }));
+  trips.filter((t) => t.driverAcceptance === 'pending' && t.status !== 'cancelled' && t.status !== 'completed').slice(0, 8).forEach((t) => {
+    const route = store.find('routes', (r) => r.id === t.routeId);
+    const driver = store.find('drivers', (d) => d.id === t.driverId);
+    workflowQueue.push({ id: t.id, type: 'acceptance', priority: 'high', title: `${t.id} needs driver acceptance`, detail: `${route ? route.code : 'Route'} · ${driver ? driver.name : 'Unassigned'}`, action: 'trips', actionLabel: 'Open trip' });
+  });
+  trips.filter((t) => t.status === 'in-progress').slice(0, 8).forEach((t) => {
+    const vehicle = store.find('vehicles', (v) => v.id === t.vehicleId);
+    workflowQueue.push({ id: t.id, type: 'running', priority: 'normal', title: `${t.id} is in progress`, detail: `${vehicle ? vehicle.regNo : 'Vehicle'} · monitor live movement`, action: 'tracking', actionLabel: 'Track vehicle' });
+  });
+  store.collection('incidents').filter((i) => i.status !== 'closed').slice(0, 6).forEach((i) => workflowQueue.push({
+    id: i.id, type: 'incident', priority: i.severity === 'high' ? 'high' : 'normal', title: i.description || 'Open incident', detail: `${i.vehicleId || 'Fleet'} · ${i.status}`, action: 'incidents', actionLabel: 'Open incident',
+  }));
+  workflowQueue.sort((a, b) => (a.priority === 'high' ? -1 : 1) - (b.priority === 'high' ? -1 : 1));
+
   res.json({
     data: {
       generatedAt: new Date().toISOString(),
@@ -142,6 +185,7 @@ router.get('/overview', (_req, res) => {
           const vehicle = store.find('vehicles', (v) => v.id === m.vehicleId);
           return { ...m, vehicleRegNo: vehicle ? vehicle.regNo : 'Unknown' };
         }),
+      workflowQueue: workflowQueue.slice(0, 12),
     },
   });
 });

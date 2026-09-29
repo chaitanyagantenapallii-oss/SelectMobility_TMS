@@ -1,17 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=/dashboard.html">
-  <title>Select Mobility TMS</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PeoplePilot | Employee Transport Management</title>
+<meta name="description" content="PeoplePilot employee transport management platform. Powered for safe, efficient corporate mobility.">
+<link rel="stylesheet" href="/css/home.css">
+<style>
+  .nav{background:#071c31;border-bottom-color:#173952}
+  .brand strong{color:#fff}
+  .brand small,.nav nav{color:#a9bfce}
+  .nav nav a:hover{color:#fff}
+  .brand img{width:76px;height:46px;border-radius:7px;object-fit:contain}
+  .login{background:linear-gradient(120deg,#f36b21,#f59e0b);color:#071c31}
+  .login b{color:#071c31}
+  @media(max-width:560px){.brand img{width:64px;height:42px}}
+</style>
 </head>
 <body>
-  <script>
-    // index.html exists so the bare host URL works; the sign-in flow takes over from there.
-    window.location.replace(localStorage.getItem('smi_tms_token') ? '/dashboard.html' : '/login.html');
-  </script>
-  <p style="font-family: Segoe UI, Arial, sans-serif; padding: 30px">
-    Redirecting to the <a href="/dashboard.html">transport desk</a>&hellip;
-  </p>
-</body>
-</html>
+<header class="nav"><a class="brand" href="/"><img src="/assets/peoplepilot-logo-transparent.png" alt="PeoplePilot"><span><strong>PeoplePilot</strong><small>Employee transport SaaS platform</small></span></a><nav><a href="#capabilities">Capabilities</a><a href="#workflow">How it works</a><a href="#roles">Workspaces</a></nav><a class="login" href="/SaaS/login.html">Platform sign in <b>→</b></a></header>
+<main>
+<section class="hero"><div><span class="eyebrow">PEOPLEPILOT TMS PLATFORM</span><h1>Corporate transport,<br><em>under control.</em></h1><p>One intelligent workspace for clients, transport administrators and drivers to plan, assign, track and safely close every employee trip.</p><div class="actions"><a class="primary" href="/SaaS/login.html">Open your workspace <b>→</b></a><a class="secondary" href="#workflow">Explore the workflow</a></div><div class="proof"><span><b>Live</b> fleet visibility</span><span><b>Smart</b> allocation</span><span><b>Safe</b> commute workflows</span></div></div><div class="dashboard"><div class="dashhead"><span><i></i> PeoplePilot control tower</span><small>SMIPL workspace · Live</small></div><div class="map"><span class="line one"></span><span class="line two"></span><span class="line three"></span><b class="car a">🚗</b><b class="car b">🚗</b><b class="car c">🚗</b><label class="pin p1">Plant Gate 3</label><label class="pin p2">Hinjewadi</label><label class="pin p3">Wakad</label></div><div class="metrics"><span><small>Moving</small><b>06</b></span><span><small>Trips today</small><b>18</b></span><span><small>Open alerts</small><b class="orange">02</b></span></div></div></section>
+<section class="section" id="capabilities"><span class="eyebrow">ONE PLATFORM, EVERY HANDOFF</span><h2>From client demand to safe drop.</h2><div class="grid"><article><strong class="ico orange">↗</strong><h3>Client booking</h3><p>Clients request vehicles, routes and staff transport from a focused portal.</p></article><article><strong class="ico blue">⌁</strong><h3>Auto allocation</h3><p>The control tower recommends available vehicles, drivers and shifts.</p></article><article><strong class="ico green">✓</strong><h3>Live operations</h3><p>Track movement, route progress, signal health and exceptions in real time.</p></article><article><strong class="ico red">▣</strong><h3>Safety & compliance</h3><p>Boarding, safe drop, SOS, incidents, documents and audit trails stay connected.</p></article></div></section>
+<section class="workflow" id="workflow"><span class="eyebrow">THE PEOPLEPILOT FLOW</span><h2>A request becomes a managed trip.</h2><div class="steps"><div><b>01</b><h3>Client requests</h3><p>Date, pickup, drop, headcount and staff requirements.</p></div><div><b>02</b><h3>Admin allocates</h3><p>PeoplePilot recommends the best available crew and vehicle.</p></div><div><b>03</b><h3>Driver accepts</h3><p>Driver receives the trip, manifest and GPS workflow.</p></div><div><b>04</b><h3>Trip closes</h3><p>Boarding, live movement and safe drop complete the record.</p></div></div></section>
+<section class="section workspaces" id="roles"><span class="eyebrow">BUILT FOR EVERY ROLE</span><h2>Focused workspaces. One source of truth.</h2><div class="workspace-grid"><a href="/smipl/login.html"><small>CLIENT WORKSPACE</small><h3>Select Mobility India <b>→</b></h3><p>SMIPL-branded transport requests, staff bookings, trip status and statements.</p></a><a href="/SaaS/login.html"><small>TRANSPORT TEAM</small><h3>PeoplePilot control tower <b>→</b></h3><p>Dispatch, fleet, allocation, incidents, compliance and reporting.</p></a><a href="/SaaS/login.html"><small>DRIVER</small><h3>Driver workspace <b>→</b></h3><p>Accept trips, share GPS, board passengers and close safely.</p></a></div></section>
+</main><footer><span>PeoplePilot by Chaitanya Digital Services</span><span>Client workspace: Select Mobility India Private Limited</span></footer><script>document.querySelector('footer').innerHTML += ' · ' + new Date().getFullYear();</script>
+</body></html>

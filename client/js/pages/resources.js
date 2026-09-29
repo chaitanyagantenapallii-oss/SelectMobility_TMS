@@ -22,19 +22,15 @@ const VendorsPage = {
               ${statusPill(v.status)}
             </div>
             <div class="card-body">
-              <div class="grid cols-2" style="gap:0 14px">
-                <div class="kv">
-                  <dt>Contact</dt><dd>${escapeHtml(v.contact)}</dd>
-                  <dt>Phone</dt><dd class="mono">${escapeHtml(v.phone)}</dd>
-                  <dt>GSTIN</dt><dd class="mono" style="font-size:11.5px">${escapeHtml(v.gstin || '-')}</dd>
-                  <dt>Contract till</dt><dd>${Fmt.date(v.contractTill)}</dd>
-                </div>
-                <div class="kv">
-                  <dt>Vehicles</dt><dd>${v.vehicleCount}</dd>
-                  <dt>Drivers</dt><dd>${v.driverCount}</dd>
-                  <dt>Trips serviced</dt><dd>${Fmt.num(v.tripsServiced)}</dd>
-                  <dt>Billed to date</dt><dd>${Fmt.money(v.billedToDate)}</dd>
-                </div>
+              <div class="vendor-detail-grid">
+                <span>Contact</span><strong>${escapeHtml(v.contact)}</strong>
+                <span>Phone</span><strong class="mono">${escapeHtml(v.phone)}</strong>
+                <span>GSTIN</span><strong class="mono">${escapeHtml(v.gstin || '-')}</strong>
+                <span>Contract till</span><strong>${Fmt.date(v.contractTill)}</strong>
+                <span>Vehicles</span><strong>${v.vehicleCount}</strong>
+                <span>Drivers</span><strong>${v.driverCount}</strong>
+                <span>Trips serviced</span><strong>${Fmt.num(v.tripsServiced)}</strong>
+                <span>Billed to date</span><strong>${Fmt.money(v.billedToDate)}</strong>
               </div>
               <div class="divider"></div>
               <div style="display:flex;align-items:center;gap:10px">

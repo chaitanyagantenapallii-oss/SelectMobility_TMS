@@ -23,3 +23,14 @@ apps/*/*.apk
 apps/*/*.aab
 apps/*/*.ipa
 apps/node_modules/
+
+# Generated previews, release bundles, and document exports are not deployment source.
+output/
+tmp/
+*.bundle
+*.apk
+*.aab
+*-debug.png
+tmp-*.png
+employee-debug.png
+employee-app-debug.png

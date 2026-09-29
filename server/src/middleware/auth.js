@@ -26,6 +26,9 @@ function authenticate(req, _res, next) {
     role: user.role,
     organisation: user.organisation || null,
     driverId: user.driverId || null,
+    employeeId: user.employeeId || null,
+    accountType: user.accountType || 'live',
+    demo: user.accountType === 'demo',
   };
   return next();
 }

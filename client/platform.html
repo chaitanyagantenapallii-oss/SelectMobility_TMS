@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PeoplePilot Platform Console</title>
+    <link rel="stylesheet" href="/css/platform.css" />
+    <link rel="stylesheet" href="/css/platform-shell.css" />
+    <link rel="stylesheet" href="/css/platform-compact.css?v=compact-1" />
+    <link rel="stylesheet" href="/css/platform-visibility.css?v=visibility-1" />
+    <link rel="stylesheet" href="/css/platform-hierarchy.css?v=hierarchy-1" />
+    <link rel="stylesheet" href="/css/platform-brand.css?v=brand-2" />
+    <style>.create-tenant{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px;margin-bottom:18px;background:#f7fafc;border:1px solid #dfe7ee;border-radius:7px}.create-tenant label{display:block;color:#68798a;font-size:11px;font-weight:800;margin-bottom:5px}.create-tenant input,.create-tenant select{width:100%;padding:10px;border:1px solid #dfe7ee;border-radius:6px;color:#102337;background:#fff}.create-actions{display:flex;align-items:end;gap:8px}.button.secondary{background:#e8eef3;color:#071c31}@media(max-width:900px){.create-tenant{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.create-tenant{grid-template-columns:1fr}}</style>
+  </head>
+  <body>
+    <header class="top">
+      <a class="brand" href="/"
+        ><img
+          src="/assets/peoplepilot-logo-transparent.png"
+          alt="PeoplePilot"
+        /><span><b>PeoplePilot</b><small>SaaS platform console</small></span></a
+      >
+      <div class="top-actions">
+        <span id="operator">Platform administrator</span
+        ><button id="logout">Sign out</button>
+      </div>
+    </header>
+    <div class="platform-layout">
+    <aside class="side-panel" aria-label="Platform navigation">
+      <div class="side-title">PLATFORM CONTROL</div>
+      <button class="side-link active" data-section="overview">Overview</button>
+      <button class="side-link" data-section="tenants">Tenant workspaces</button>
+      <button class="side-link" data-section="billing">Billing & subscriptions</button>
+      <button class="side-link" data-section="invoices">Invoices</button>
+      <button class="side-link" data-section="escalations">Escalations</button>
+      <button class="side-link" data-section="usage">Usage & limits</button>
+      <button class="side-link" data-section="audit">Audit & security</button>
+    </aside>
+    <main>
+      <section class="heading platform-view overview-view" data-view="overview">
+        <div>
+          <span class="eyebrow">PLATFORM OPERATIONS</span>
+          <h1>Client organisations</h1>
+          <p>Provision and oversee every TMS workspace from one platform.</p>
+        </div>
+        <span class="platform-context">PeoplePilot multi-tenant administration</span>
+      </section>
+      <section class="stats platform-view overview-view" id="stats" data-view="overview"></section>
+      <section class="panel platform-view" id="tenants" data-view="tenants">
+        <div class="panel-head">
+          <div>
+            <h2>Tenant workspaces</h2>
+            <p>
+              Each organisation has isolated users, fleet, trips and branding.
+            </p>
+          </div>
+          <button class="button" id="refresh">Refresh</button>
+        </div>
+        <form id="create-tenant" class="create-tenant" hidden>
+          <div><label for="tenant-name">SMIPL client organisation</label><input id="tenant-name" name="name" required placeholder="Example Industries Pvt. Ltd."></div>
+          <div><label for="tenant-code">Tenant code</label><input id="tenant-code" name="code" required placeholder="EXAMPLE"></div>
+          <div><label for="tenant-slug">Tenant URL slug</label><input id="tenant-slug" name="slug" required placeholder="example-industries"></div>
+          <div><label for="tenant-city">City</label><input id="tenant-city" name="city" placeholder="Pune, Maharashtra, India"></div>
+          <div><label for="tenant-email">Contact email</label><input id="tenant-email" name="contactEmail" type="email" placeholder="transport@example.com"></div>
+          <div><label for="tenant-logo">Tenant logo URL</label><input id="tenant-logo" name="logoUrl" type="url" placeholder="https://.../logo.png"></div>
+          <div><label for="tenant-status">Initial status</label><select id="tenant-status" name="status"><option value="onboarding">Onboarding</option><option value="active">Active</option></select></div>
+          <div><label for="tenant-user-name">Initial user name</label><input id="tenant-user-name" name="userName" required placeholder="Transport administrator"></div>
+          <div><label for="tenant-user-email">Initial user email</label><input id="tenant-user-email" name="userEmail" type="email" required placeholder="admin@example.com"></div>
+          <div><label for="tenant-user-password">Temporary password</label><input id="tenant-user-password" name="userPassword" type="password" minlength="8" required placeholder="At least 8 characters"></div>
+          <div class="create-actions"><button type="button" class="button secondary" id="cancel-tenant">Cancel</button><button type="submit" class="button">Create workspace and user</button></div>
+        </form>
+        <div id="orgs" class="orgs">
+          <div class="loading">Loading workspaces...</div>
+        </div>
+      </section>
+      <section class="platform-module" id="billing" hidden><div class="module-head"><div><span class="eyebrow">REVENUE OPERATIONS</span><h2>Billing & subscriptions</h2><p>Track plans, active vehicles, recurring value and renewal risk across tenants.</p></div><button class="button">＋ New billing plan</button></div><div class="module-grid"><div><small>Monthly recurring revenue</small><b>₹28,500</b><span class="positive">+12.4% this month</span></div><div><small>Pending invoices</small><b>₹64,000</b><span class="warning">3 require attention</span></div><div><small>Renewals next 30 days</small><b>2</b><span>Review commercial terms</span></div></div></section>
+      <section class="platform-module" id="invoices" hidden><div class="module-head"><div><span class="eyebrow">FINANCE DESK</span><h2>Invoices</h2><p>Issue, send and reconcile tenant invoices from one queue.</p></div><button class="button">＋ Create invoice</button></div><div class="table-list"><div><strong>INV-2026-009</strong><span>Select Mobility India Private Limited</span><b>₹28,500 · Due 30 Sep</b><em class="warning">Awaiting payment</em></div><div><strong>INV-2026-008</strong><span>Bharat Forge Ltd</span><b>₹22,500 · Paid 18 Sep</b><em class="positive">Paid</em></div></div></section>
+      <section class="platform-module" id="escalations" hidden><div class="module-head"><div><span class="eyebrow">SERVICE CONTROL</span><h2>Escalations</h2><p>Resolve onboarding, service and billing issues before they affect a client.</p></div><button class="button">＋ Raise escalation</button></div><div class="table-list"><div><strong>SMIPL · GPS integration</strong><span>Provider webhook credentials pending</span><b>Owner: Platform operations</b><em class="warning">In progress</em></div><div><strong>Bharat Forge · invoice query</strong><span>Client requested usage breakdown</span><b>Owner: Finance desk</b><em class="positive">Within SLA</em></div></div></section>
+      <section class="platform-module" id="usage" hidden><div class="module-head"><div><span class="eyebrow">CAPACITY</span><h2>Usage & limits</h2><p>See consumption by tenant and identify expansion opportunities.</p></div></div><div class="table-list"><div><strong>Select Mobility India Private Limited</strong><span>8 / 30 vehicles · 30 / 100 users</span><b>GPS connector enabled</b><em class="positive">Healthy</em></div><div><strong>Bharat Forge Ltd</strong><span>12 / 30 vehicles · 48 / 100 users</span><b>Standard plan</b><em class="positive">Healthy</em></div></div></section>
+      <section class="platform-module" id="audit" hidden><div class="module-head"><div><span class="eyebrow">GOVERNANCE</span><h2>Audit & security</h2><p>Platform-level sign-ins, workspace changes and privileged actions.</p></div></div><div class="table-list"><div><strong>Workspace created</strong><span>SMIPL workspace provisioned</span><b>Today · Platform administrator</b><em class="positive">Logged</em></div><div><strong>Session policy</strong><span>12-hour token expiry · independent browser tabs</span><b>PeoplePilot platform</b><em class="positive">Active</em></div></div></section>
+    </main></div>
+    </main>
+    <script src="/js/api.js?v=tab-session-2"></script>
+    <script src="/js/platform.js?v=platform-console-6"></script>
+  </body>
+</html>

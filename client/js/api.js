@@ -7,11 +7,20 @@
 const Api = (() => {
   const TOKEN_KEY = 'smi_tms_token';
   const USER_KEY = 'smi_tms_user';
+  // Keep auth isolated per browser tab so multiple roles can be logged in at once.
+  const authStorage = sessionStorage;
 
-  let token = localStorage.getItem(TOKEN_KEY) || '';
+  let token = authStorage.getItem(TOKEN_KEY) || '';
   let user = (() => {
-    try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; }
+    try { return JSON.parse(authStorage.getItem(USER_KEY) || 'null'); } catch { return null; }
   })();
+
+  function clearSession() {
+    token = '';
+    user = null;
+    authStorage.removeItem(TOKEN_KEY);
+    authStorage.removeItem(USER_KEY);
+  }
 
   async function request(method, path, body, options = {}) {
     const headers = {};
@@ -25,9 +34,11 @@ const Api = (() => {
     });
 
     if (res.status === 401 && !options.skipAuthRedirect) {
-      clearToken();
-      if (!location.pathname.endsWith('login.html') && location.pathname !== '/') {
-        location.href = '/login.html';
+      clearSession();
+      const isLoginPage = location.pathname === '/' || location.pathname.endsWith('login.html') || location.pathname === '/smipl/login';
+      if (!isLoginPage) {
+        const tenant = location.pathname.match(/^\/([^/]+)\//)?.[1];
+        location.href = tenant ? `/${tenant}/login.html?fresh=1` : '/login.html?fresh=1';
       }
       throw new Error('Your session has expired. Please sign in again.');
     }
@@ -59,7 +70,7 @@ const Api = (() => {
     get isAdmin() { return user && user.role === 'admin'; },
     get canWrite() { return user && (user.role === 'admin' || user.role === 'operations'); },
 
-    post: (p, b) => request('POST', p, b),
+    post: (p, b, options) => request('POST', p, b, options),
     put: (p, b) => request('PUT', p, b),
     patch: (p, b) => request('PATCH', p, b),
     del: (p) => request('DELETE', p),
@@ -68,14 +79,11 @@ const Api = (() => {
     setSession(t, u) {
       token = t;
       user = u;
-      localStorage.setItem(TOKEN_KEY, t);
-      localStorage.setItem(USER_KEY, JSON.stringify(u));
+      authStorage.setItem(TOKEN_KEY, t);
+      authStorage.setItem(USER_KEY, JSON.stringify(u));
     },
     clearToken() {
-      token = '';
-      user = null;
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+      clearSession();
     },
 
     /** Download a report or export as a file. */

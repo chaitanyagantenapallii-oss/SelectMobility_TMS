@@ -1,0 +1,13 @@
+:root{--client-flow:#06b6d4}.client-flow{border-left:4px solid var(--client-flow);background:linear-gradient(135deg,#fff,#effcff)}.client-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:8px 0 2px}.client-steps b{padding:12px;border-top:3px solid #2563eb;background:#f8fbff;color:#2563eb;border-radius:7px;font-size:18px}.client-steps b:nth-child(2){border-color:#7c3aed;color:#7c3aed}.client-steps b:nth-child(3){border-color:#f97316;color:#f97316}.client-steps b:nth-child(4){border-color:#16a34a;color:#16a34a}.client-steps span{display:block;color:#102a43;font-size:14px;margin-top:4px}.client-steps small{display:block;color:#71879a;font-size:11px;font-weight:400;margin-top:3px}@media(max-width:850px){.client-steps{grid-template-columns:repeat(2,1fr)}}
+/* Client identity is resolved from the tenant record; keep the provider shell neutral. */
+.sidebar-head .mark{width:48px;height:48px;min-width:48px;background:#fff;border:2px solid var(--client-brand,#f4511e);border-radius:50%;display:grid;place-items:center;overflow:hidden}
+.sidebar-head .mark img{width:100%;height:100%;object-fit:contain;padding:4px}
+.client-initials{font-size:16px;font-weight:800;color:var(--client-brand,#f4511e)}
+.client-web .table,.client-web table{width:100%}
+.content .table{width:100%;border-collapse:separate;border-spacing:0;table-layout:auto;background:#fff;border:1px solid #d8e2eb;border-radius:8px;overflow:hidden}
+.content .table thead th{background:#eef4f8;color:#27445d;font-size:12px;font-weight:800;letter-spacing:.04em;text-align:left;text-transform:uppercase;padding:14px 16px;border-bottom:2px solid #cbd8e2;white-space:nowrap}
+.content .table tbody td{padding:14px 16px;color:#243b53;font-size:14px;border-bottom:1px solid #e3eaf0;vertical-align:middle;white-space:nowrap}
+.content .table tbody tr:last-child td{border-bottom:0}
+.content .table tbody tr:hover td{background:#f7fbfd}
+.content .table .pill{display:inline-flex;align-items:center;min-width:72px;justify-content:center;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;text-transform:capitalize}
+.content .table + .empty,.content .table tbody td[colspan]{text-align:center}

@@ -16,7 +16,7 @@ const base = createResource({
   sortField: 'code',
   searchFields: ['code', 'name'],
   filterFields: ['status', 'shiftId'],
-  defaults: { status: 'active', stops: [], distanceKm: 0 },
+  defaults: { status: 'active', stops: [], stopPoints: [], distanceKm: 0 },
   validate: validators.combine(
     validators.required(['code', 'name', 'shiftId']),
     validators.unique('code', 'Route code'),
@@ -72,6 +72,38 @@ router.put('/:id/stops', requireRole('operations'), (req, res) => {
 
   const updated = store.update('routes', route.id, { stops });
   audit(req, 'routes.stops', `Updated stop sequence for ${route.code}`);
+  res.json({ data: updated });
+});
+
+/**
+ * PUT /api/routes/:id/stop-points - give the stops coordinates.
+ *
+ * Kept beside the name list rather than replacing it: the roster endpoint and
+ * every existing screen match staff to stops by name, so `stops` has to stay a
+ * plain array of strings. This adds the geometry the tracking map needs.
+ */
+router.put('/:id/stop-points', requireRole('operations'), (req, res) => {
+  const route = store.find('routes', (r) => r.id === req.params.id);
+  if (!route) throw new ApiError(404, `Route ${req.params.id} was not found.`);
+
+  const points = Array.isArray(req.body?.stopPoints) ? req.body.stopPoints : null;
+  if (!points) throw new ApiError(400, 'Send a stopPoints array of { name, lat, lon }.');
+
+  const cleaned = points.map((p) => {
+    const lat = Number(p.lat);
+    const lon = Number(p.lon);
+    if (!String(p.name || '').trim()) throw new ApiError(400, 'Every stop point needs a name.');
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      throw new ApiError(400, `"${p.name}" has an unusable latitude.`);
+    }
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      throw new ApiError(400, `"${p.name}" has an unusable longitude.`);
+    }
+    return { name: String(p.name).trim(), lat, lon };
+  });
+
+  const updated = store.update('routes', route.id, { stopPoints: cleaned });
+  audit(req, 'routes.stopPoints', `Mapped ${cleaned.length} stop position(s) for ${route.code}`);
   res.json({ data: updated });
 });
 

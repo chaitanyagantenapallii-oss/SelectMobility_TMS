@@ -56,11 +56,11 @@ function makeWindow(opts = {}) {
     return fetch(abs, init);
   };
 
-  // api.js reads its token from localStorage at load time, so the token must be
+  // api.js reads its per-tab token from sessionStorage at load time, so the token must be
   // present BEFORE the scripts are evaluated.
   if (opts.token) {
-    w.localStorage.setItem('smi_tms_token', opts.token);
-    w.localStorage.setItem('smi_tms_user', JSON.stringify(opts.user || {}));
+    w.sessionStorage.setItem('smi_tms_token', opts.token);
+    w.sessionStorage.setItem('smi_tms_user', JSON.stringify(opts.user || {}));
   }
 
   const tags = Array.from(html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi));
@@ -68,7 +68,7 @@ function makeWindow(opts = {}) {
     const srcMatch = attrs.match(/\bsrc="([^"]+)"/i);
     const el = w.document.createElement('script');
     el.textContent = srcMatch
-      ? fs.readFileSync(path.join(ROOT, 'client', srcMatch[1].replace(/^\//, '')), 'utf8')
+      ? fs.readFileSync(path.join(ROOT, 'client', srcMatch[1].replace(/^\//, '').split('?')[0]), 'utf8')
       : body;
     try {
       w.document.body.appendChild(el);

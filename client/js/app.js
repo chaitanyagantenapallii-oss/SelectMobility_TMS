@@ -11,6 +11,8 @@ const NAV = [
       { id: 'dashboard', icon: '\u{1F4CA}', label: 'Dashboard' },
       { id: 'trips', icon: '\u{1F68C}', label: 'Trip Logs' },
       { id: 'manifests', icon: '\u{1F4CB}', label: 'Manifests & Boarding' },
+      { id: 'requests', icon: '\u{1F4E8}', label: 'Requests', badgeKey: 'requests' },
+      { id: 'tracking', icon: '\u{1F4E1}', label: 'Live Tracking' },
       { id: 'routes', icon: '\u{1F5FA}', label: 'Routes & Stops' },
       { id: 'shifts', icon: '\u{23F0}', label: 'Shift Timings' },
     ],
@@ -21,6 +23,7 @@ const NAV = [
       { id: 'vehicles', icon: '\u{1F699}', label: 'Fleet Vehicles' },
       { id: 'drivers', icon: '\u{1F464}', label: 'Drivers' },
       { id: 'employees', icon: '\u{1F465}', label: 'Employees' },
+      { id: 'companies', icon: '\u{1F3ED}', label: 'Companies' },
       { id: 'vendors', icon: '\u{1F3E2}', label: 'Vendors' },
     ],
   },
@@ -30,6 +33,8 @@ const NAV = [
       { id: 'maintenance', icon: '\u{1F527}', label: 'Maintenance' },
       { id: 'fuel', icon: '\u{26FD}', label: 'Fuel & Energy' },
       { id: 'expenses', icon: '\u{1F4B0}', label: 'Expenses' },
+      { id: 'billing', icon: '\u{1F9FE}', label: 'Billing & Invoicing' },
+      { id: 'commercials', icon: '\u{1F4B3}', label: 'Commercials' },
     ],
   },
   {
@@ -52,15 +57,20 @@ const PAGES = {
   dashboard: { title: 'Operations Dashboard', sub: 'Fleet health, shift coverage and today at a glance' },
   trips: { title: 'Trip Logs', sub: 'Every vehicle run, with variance and occupancy' },
   manifests: { title: 'Manifests & Boarding', sub: 'Passenger lists and digital boarding' },
+  requests: { title: 'Client Requests', sub: 'Ride requests and notes raised from the Client app' },
+  tracking: { title: 'Live Tracking', sub: 'Where every vehicle is right now, updated from the Driver app' },
   routes: { title: 'Routes & Stops', sub: 'Route corridors, stop sequence and rosters' },
   shifts: { title: 'Shift Timings', sub: 'Pickup and drop windows per shift' },
   vehicles: { title: 'Fleet Vehicles', sub: 'Buses, vans and electric vehicles' },
   drivers: { title: 'Drivers', sub: 'Licences, badges and performance' },
   employees: { title: 'Employees', sub: 'Staff availing transport, by route and stop' },
+  companies: { title: 'Client Companies', sub: 'Corporate customers, their staff and logins' },
   vendors: { title: 'Transport Vendors', sub: 'Contracted suppliers and their fleets' },
   maintenance: { title: 'Maintenance', sub: 'Services, repairs and workshop jobs' },
   fuel: { title: 'Fuel & Energy', sub: 'Diesel, CNG and electric charging transactions' },
   expenses: { title: 'Operating Expenses', sub: 'Cost ledger by category and month' },
+  billing: { title: 'Billing & Invoicing', sub: 'Client commercials, vendor cost and invoice reconciliation' },
+  commercials: { title: 'Commercials', sub: 'Create and manage vendor and client rate cards' },
   documents: { title: 'Compliance Documents', sub: 'Insurance, permits, PUC and fitness' },
   incidents: { title: 'Incidents & Safety', sub: 'Breakdowns, accidents and escalations' },
   reports: { title: 'Reports & Exports', sub: 'Eleven operational reports with CSV download' },
@@ -69,7 +79,7 @@ const PAGES = {
 
 const App = {
   current: null,
-  alerts: { compliance: 0, incidents: 0 },
+  alerts: { compliance: 0, incidents: 0, requests: 0 },
 
   /**
    * Navigation generation counter.
@@ -92,11 +102,14 @@ const App = {
     dashboard: () => DashboardPage,
     trips: () => TripsPage,
     manifests: () => ManifestsPage,
+    requests: () => RequestsPage,
+    tracking: () => TrackingPage,
     routes: () => RoutesPage,
     shifts: () => ShiftsPage,
     vehicles: () => VehiclesPage,
     drivers: () => DriversPage,
     employees: () => EmployeesPage,
+    companies: () => CompaniesPage,
     vendors: () => VendorsPage,
     maintenance: () => MaintenancePage,
     fuel: () => FuelPage,
@@ -105,18 +118,32 @@ const App = {
     incidents: () => IncidentsPage,
     reports: () => ReportsPage,
     users: () => UsersPage,
+    billing: () => BillingPage,
+    commercials: () => CommercialsPage,
   },
 
   async init() {
     if (!Api.token) return;
+    this.tenantSlug = location.pathname.match(/^\/([^/]+)\//)?.[1] || '';
 
     try {
       const me = await Api.get('/auth/me');
       Api.setSession(Api.token, me.user);
       this.user = me.user;
+      // Keep scoped client and driver accounts out of the admin desk shell.
+      // The API already enforces this server-side; this prevents a confusing
+      // admin navigation from appearing before the permission error arrives.
+      if (me.user.role === 'client') {
+        location.replace(this.tenantSlug ? `/${this.tenantSlug}/client.html` : '/client.html');
+        return;
+      }
+      if (me.user.role === 'driver') {
+        location.replace(this.tenantSlug ? `/${this.tenantSlug}/driver.html` : '/driver.html');
+        return;
+      }
     } catch {
       Api.clearToken();
-      location.href = '/login.html';
+      location.href = this.tenantSlug ? `/${this.tenantSlug}/login.html?fresh=1` : '/login.html?fresh=1';
       return;
     }
 
@@ -149,7 +176,7 @@ const App = {
 
     $$('.nav-item', nav).forEach((btn) => {
       btn.addEventListener('click', () => {
-        location.hash = btn.dataset.page;
+        App.go(btn.dataset.page);
         document.getElementById('sidebar').classList.remove('open');
       });
     });
@@ -161,6 +188,10 @@ const App = {
   },
 
   bindShell() {
+    document.addEventListener('click', (event) => {
+      const kpi = event.target.closest('[data-kpi-page]');
+      if (kpi) App.go(kpi.dataset.kpiPage);
+    });
     document.getElementById('menu-toggle').addEventListener('click', () => {
       document.getElementById('sidebar').classList.toggle('open');
     });
@@ -208,12 +239,42 @@ const App = {
       });
     });
 
+    const input = document.getElementById('command-input');
+    const results = document.getElementById('command-results');
+    const search = document.getElementById('command-search');
+    const entries = NAV.flatMap((group) => group.items
+      .filter((item) => !item.adminOnly || Api.isAdmin)
+      .map((item) => ({ ...item, group: group.label })));
+    const renderCommands = () => {
+      const q = input.value.trim().toLowerCase();
+      const matches = entries.filter((item) => !q || `${item.label} ${item.group}`.toLowerCase().includes(q)).slice(0, 8);
+      results.innerHTML = matches.map((item) => `<button class="command-result" data-command="${item.id}"><span>${item.icon}</span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.group)}</small><b>&rarr;</b></button>`).join('') || '<div class="command-empty">No matching workflow</div>';
+      results.hidden = false;
+      $$('.command-result', results).forEach((button) => button.addEventListener('click', () => {
+        App.go(button.dataset.command);
+        results.hidden = true;
+        input.value = '';
+      }));
+    };
+    input.addEventListener('focus', renderCommands);
+    input.addEventListener('input', renderCommands);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { results.hidden = true; input.blur(); }
+      if (event.key === 'Enter') { const first = results.querySelector('.command-result'); if (first) first.click(); }
+    });
+    document.addEventListener('click', (event) => { if (!search.contains(event.target)) results.hidden = true; });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === '/' && document.activeElement !== input && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        event.preventDefault(); input.focus();
+      }
+    });
+
     document.getElementById('logout-btn').addEventListener('click', async () => {
       const ok = await confirmDialog('Sign out of the transport desk?', { title: 'Sign out', confirmLabel: 'Sign out', danger: false });
       if (!ok) return;
       try { await Api.post('/auth/logout'); } catch { /* best effort */ }
       Api.clearToken();
-      location.href = '/login.html';
+      location.href = this.tenantSlug ? `/${this.tenantSlug}/login.html?fresh=1` : '/SaaS/login.html?fresh=1';
     });
 
     document.getElementById('alerts-btn').addEventListener('click', () => {
@@ -226,14 +287,18 @@ const App = {
 
   async loadAlertCounts() {
     try {
-      const [docs, incidents] = await Promise.all([
+      const [docs, incidents, requests] = await Promise.all([
         Api.get('/documents/alerts?window=30'),
         Api.get('/incidents?status=open'),
+        Api.get('/trip-requests?status=pending'),
       ]);
       this.alerts.compliance = docs.data.length;
       this.alerts.incidents = incidents.data.length;
+      // A pending request is a client waiting on an answer, so it belongs in the
+      // alert total - otherwise a ride request can sit unseen for days.
+      this.alerts.requests = (requests.meta && requests.meta.pending) || requests.data.length;
 
-      const total = this.alerts.compliance + this.alerts.incidents;
+      const total = this.alerts.compliance + this.alerts.incidents + this.alerts.requests;
       const btn = document.getElementById('alerts-btn');
       let badge = btn.querySelector('.dot');
       if (total > 0) {
@@ -243,7 +308,7 @@ const App = {
           btn.appendChild(badge);
         }
         badge.textContent = total > 99 ? '99+' : String(total);
-        btn.title = `${this.alerts.compliance} compliance alerts, ${this.alerts.incidents} open incidents`;
+        btn.title = `${this.alerts.compliance} compliance alerts, ${this.alerts.incidents} open incidents, ${this.alerts.requests} pending requests`;
       } else if (badge) {
         badge.remove();
       }
@@ -258,11 +323,21 @@ const App = {
         incBadge.style.display = this.alerts.incidents ? '' : 'none';
         incBadge.textContent = this.alerts.incidents;
       }
+      const reqBadge = document.querySelector('[data-badge="requests"]');
+      if (reqBadge) {
+        reqBadge.style.display = this.alerts.requests ? '' : 'none';
+        reqBadge.textContent = this.alerts.requests;
+      }
     } catch { /* badges are non-critical */ }
   },
 
   route() {
-    const hash = (location.hash || '#dashboard').replace('#', '') || 'dashboard';
+    const cleanPage = this.tenantSlug && location.pathname.match(/^\/[^/]+\/([^/?#]+)$/)?.[1];
+    // Preserve an intentional module hash such as #requests or #tracking.
+    // Replacing it with the current pathname made dashboard flow links appear
+    // inert on tenant-scoped URLs like /smipl/dashboard.
+    if (cleanPage && PAGES[cleanPage] && !location.hash) history.replaceState(null, '', `/${this.tenantSlug}/${cleanPage}`);
+    const hash = (location.hash || (cleanPage ? `#${cleanPage}` : '#dashboard')).replace('#', '') || 'dashboard';
     const [pageId, ...args] = hash.split('/');
     const page = PAGES[pageId] ? pageId : 'dashboard';
 
@@ -274,6 +349,16 @@ const App = {
 
     const container = document.getElementById('content');
     container.innerHTML = '<div class="spinner"></div>';
+
+    /*
+     * Give the outgoing page a chance to stop anything recurring (timers,
+     * in-flight polls) before it is replaced. Without this a page that polls
+     * would carry on fetching for a view the user has already left.
+     */
+    const outgoing = this.current;
+    if (outgoing && typeof outgoing.destroy === 'function') {
+      try { outgoing.destroy(); } catch (err) { /* teardown must never block navigation */ }
+    }
 
     const factory = this.pages[page];
     const controller = factory();
@@ -311,8 +396,14 @@ const App = {
 
   /** Navigate programmatically. */
   go(page, arg) {
+    if (this.tenantSlug && !arg) {
+      history.pushState(null, '', `/${this.tenantSlug}/${page}`);
+      this.route();
+      return;
+    }
     location.hash = arg ? `${page}/${arg}` : page;
   },
 };
 
+window.addEventListener('popstate', () => App.route());
 document.addEventListener('DOMContentLoaded', () => App.init());

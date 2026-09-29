@@ -1,0 +1,9 @@
+{
+  "name": "PeoplePilot Staff Booking App",
+  "short_name": "Staff Booking",
+  "start_url": "/smipl/staff.html",
+  "display": "standalone",
+  "background_color": "#f4f7fa",
+  "theme_color": "#06243b",
+  "icons": [{"src":"/icons/icon-192.png","sizes":"192x192","type":"image/png"}]
+}

@@ -45,6 +45,16 @@ const Mobile = (() => {
     go(path);
   }
 
+  // Tenant mobile apps must stay inside their tenant URL space. Falling back
+  // to /login.html or /driver.html silently moved users into the platform or
+  // another tenant's session.
+  function tenantPath(path) {
+    const match = location.pathname.match(/^\/([^/]+)\//);
+    if (!match || !match[1] || match[1].toLowerCase() === 'saas') return path;
+    if (!path.startsWith('/')) return path;
+    return `/${match[1]}${path}`;
+  }
+
   /* --- Connectivity ------------------------------------------------------ */
 
   function watchConnectivity() {
@@ -190,7 +200,7 @@ const Mobile = (() => {
    */
   async function requireRole(expected, loginPath) {
     if (!Api.token || !Api.user) {
-      navigate(loginPath);
+      navigate(tenantPath(loginPath));
       return false;
     }
     if (Api.user.role === 'admin') return true;
@@ -198,10 +208,10 @@ const Mobile = (() => {
       // A client account that lands on the driver app, or the reverse.
       navigate(
         Api.user.role === 'driver'
-          ? '/driver.html'
+          ? tenantPath('/driver.html')
           : Api.user.role === 'client'
-            ? '/client.html'
-            : '/dashboard.html'
+            ? tenantPath('/client.html')
+            : tenantPath('/dashboard.html')
       );
       return false;
     }
@@ -211,7 +221,7 @@ const Mobile = (() => {
   function signOut() {
     Api.clearToken();
     clearSnapshots();
-    navigate('/login.html');
+    navigate(tenantPath('/login.html'));
   }
 
   /* --- Service worker ---------------------------------------------------- */
@@ -228,6 +238,7 @@ const Mobile = (() => {
 
   return {
     navigate,
+    tenantPath,
     _setNavigateForTest,
     watchConnectivity,
     saveSnapshot,

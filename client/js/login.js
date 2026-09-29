@@ -16,6 +16,11 @@ const errEmail = document.getElementById('err-email');
 const errPw = document.getElementById('err-password');
 const capsWarn = document.getElementById('caps-warn');
 
+// `?fresh=1` is an intentional account switch for this browser tab. It keeps
+// other tabs signed in while making this tab show the login form.
+const freshLogin = new URLSearchParams(location.search).get('fresh') === '1';
+if (freshLogin) Api.clearToken();
+
 document.getElementById('year').textContent = new Date().getFullYear();
 
 /* --------------------------------------------------------------------------
@@ -23,19 +28,35 @@ document.getElementById('year').textContent = new Date().getFullYear();
    A returning user with a valid token should never see this form. This is the
    single biggest efficiency win on the page: it skips the whole sign-in step.
    -------------------------------------------------------------------------- */
-if (Api.token) {
+if (Api.token && !freshLogin) {
   btn.disabled = true;
   btn.classList.add('loading');
   btn.querySelector('.lbl').textContent = 'Restoring your session...';
   Api.get('/auth/me')
-    .then(() => window.location.replace('/dashboard.html'))
+    .then(({ user }) => window.location.replace(homeForRole(user?.role, user)))
     .catch(() => {
       // Stale or revoked token - fall back to a normal sign-in.
       Api.clearToken();
+      hideBanner();
       btn.disabled = false;
       btn.classList.remove('loading');
       btn.querySelector('.lbl').textContent = 'Sign in to transport desk';
     });
+}
+
+function homeForRole(role, user = null) {
+  const tenantBase = location.pathname.match(/^\/([^/]+)\/login(?:\.html)?$/i)?.[1];
+  const scoped = (page) => tenantBase ? `/${tenantBase}/${page}.html` : `/${page}.html`;
+  if (role === 'admin') {
+    // `/smipl/login` is the SMIPL operations desk. The platform console has
+    // its own unscoped login and must not hijack tenant administrator sessions.
+    if (tenantBase && tenantBase.toLowerCase() === 'smipl') return scoped('dashboard');
+    return user?.accountType === 'tenant-admin' ? scoped('dashboard') : '/platform.html';
+  }
+  if (role === 'client') return scoped('client');
+  if (role === 'driver') return scoped('driver');
+  if (role === 'employee') return scoped('staff');
+  return scoped('dashboard');
 }
 
 /* --------------------------------------------------------------------------
@@ -113,31 +134,6 @@ pwToggle.addEventListener('click', () => {
 });
 
 /* --------------------------------------------------------------------------
-   Demo account autofill
-   -------------------------------------------------------------------------- */
-const dcToggle = document.getElementById('dc-toggle');
-const dcBody = document.getElementById('dc-body');
-dcToggle.addEventListener('click', () => {
-  const open = !dcBody.hidden;
-  dcBody.hidden = open;
-  dcToggle.textContent = open ? 'Show' : 'Hide';
-  dcToggle.setAttribute('aria-expanded', String(!open));
-});
-
-dcBody.addEventListener('click', (e) => {
-  const item = e.target.closest('.dc-item');
-  if (!item) return;
-  emailInput.value = item.dataset.email;
-  pwInput.value = item.dataset.pass;
-  // Clear any prior validation state and put the cursor on the button.
-  setError(emailInput, errEmail, '');
-  setError(pwInput, errPw, '');
-  touched.email = touched.password = false;
-  hideBanner();
-  btn.focus({ preventScroll: true });
-});
-
-/* --------------------------------------------------------------------------
    Remembered email
    Storing the address (never the password) saves returning users a step.
    -------------------------------------------------------------------------- */
@@ -191,7 +187,7 @@ form.addEventListener('submit', async (e) => {
     const res = await Api.post('/auth/login', {
       email: emailInput.value.trim(),
       password: pwInput.value,
-    });
+    }, { skipAuthRedirect: true });
     Api.setSession(res.token, res.user);
 
     try {
@@ -199,7 +195,7 @@ form.addEventListener('submit', async (e) => {
       else localStorage.removeItem(REMEMBER_KEY);
     } catch { /* non-fatal */ }
 
-    window.location.href = '/dashboard.html';
+    window.location.href = homeForRole(res.user?.role, res.user);
   } catch (err) {
     showBanner(err.message || 'Unable to sign in. Please try again.');
     setLoading(false);

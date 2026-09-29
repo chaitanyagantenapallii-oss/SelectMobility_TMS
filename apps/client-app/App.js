@@ -1,7 +1,7 @@
 /**
  * SMI Client - React Native app.
  *
- * Screens: sign in, Live, Staff, History, Statement, Requests.
+ * Screens: sign in, Live, Staff, History, Statement, Book, Requests.
  *
  * Mirrors client/js/client-app.js. Everything here is scoped by the server to
  * one organisation; this app never filters as a security measure, only for
@@ -30,7 +30,7 @@ import {
   clearSession,
   getUser,
   restoreSession,
-} from '../mobile-shared/api';
+} from './src/api';
 import {
   colors,
   spacing,
@@ -42,14 +42,15 @@ import {
   num,
   statusColor,
   statusLabel,
-} from '../mobile-shared/theme';
-import SignIn from '../mobile-shared/SignIn';
+} from './src/theme';
+import SignIn from './src/SignIn';
 
 const TABS = [
   { key: 'overview', label: 'Live' },
   { key: 'roster', label: 'Staff' },
   { key: 'history', label: 'History' },
   { key: 'statement', label: 'Bill' },
+  { key: 'bookings', label: 'Book' },
   { key: 'requests', label: 'Requests' },
 ];
 
@@ -58,6 +59,7 @@ const TAB_TITLES = {
   roster: 'My staff',
   history: 'Trip history',
   statement: 'Statement',
+  bookings: 'Book staff',
   requests: 'Requests',
 };
 
@@ -139,6 +141,7 @@ export default function App() {
             {tab === 'roster' && <RosterScreen onOpenEmployee={setEmployeeId} />}
             {tab === 'history' && <HistoryScreen />}
             {tab === 'statement' && <StatementScreen />}
+            {tab === 'bookings' && <BookingsScreen />}
             {tab === 'requests' && <RequestsScreen />}
           </>
         )}
@@ -147,6 +150,63 @@ export default function App() {
       {!employeeId && <TabBar tab={tab} onChange={changeTab} />}
     </View>
   );
+}
+
+/* --- Bookings ------------------------------------------------------------ */
+
+function BookingsScreen() {
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [trips, setTrips] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [tripId, setTripId] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [t, r] = await Promise.all([clientApi.availableTrips(), clientApi.roster()]);
+      setTrips(t.data || []);
+      setStaff((r.data || []).filter((e) => e.status === 'active'));
+      setTripId((t.data || [])[0]?.id || null);
+    } catch (e) { Alert.alert('Could not load trips', e.message); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const toggle = (id) => setSelected((old) => old.includes(id) ? old.filter((x) => x !== id) : [...old, id]);
+  const submit = async () => {
+    if (!tripId || !selected.length) { Alert.alert('Select staff', 'Choose an upcoming trip and at least one staff member.'); return; }
+    setBusy(true);
+    try {
+      const result = await clientApi.bookings(tripId, selected);
+      Alert.alert('Bookings confirmed', result.message || 'Staff seats are reserved.');
+      setSelected([]);
+      await load();
+    } catch (e) { Alert.alert('Booking not completed', e.message); }
+    finally { setBusy(false); }
+  };
+  if (loading) return <View style={styles.busy}><ActivityIndicator color={colors.brand} /></View>;
+  return <ScrollView style={styles.fill} contentContainerStyle={styles.scrollBody} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.brand} />}>
+    <Card>
+      <Text style={styles.cardTitle}>Reserve staff seats</Text>
+      <Text style={styles.muted}>Select an upcoming route and the employees travelling. Capacity and duplicate bookings are checked automatically.</Text>
+      {!trips.length ? <Text style={styles.emptyText}>No open trips are published yet.</Text> : <>
+        <Field label="Upcoming trip">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {trips.map((t) => <TouchableOpacity key={t.id} style={[styles.chip, tripId === t.id && styles.chipOn]} onPress={() => { setTripId(t.id); setSelected([]); }}>
+              <Text style={[styles.chipText, tripId === t.id && styles.chipTextOn]}>{date(t.date)} · {t.routeCode} · {t.booked}/{t.capacity}</Text>
+            </TouchableOpacity>)}
+          </ScrollView>
+        </Field>
+        <Field label="Staff travelling">
+          {staff.map((e) => <TouchableOpacity key={e.id} style={styles.checkRow} onPress={() => toggle(e.id)}>
+            <Text style={[styles.checkBox, selected.includes(e.id) && styles.checkBoxOn]}>{selected.includes(e.id) ? '✓' : ''}</Text>
+            <View style={styles.fill}><Text style={styles.rowTitle}>{e.name}</Text><Text style={styles.muted}>{e.code} · {e.stop || 'no stop'}</Text></View>
+          </TouchableOpacity>)}
+        </Field>
+        <TouchableOpacity style={[styles.btn, busy && styles.btnDisabled]} disabled={busy} onPress={submit}><Text style={styles.btnText}>{busy ? 'Confirming...' : 'Confirm bookings'}</Text></TouchableOpacity>
+      </>}
+    </Card>
+  </ScrollView>;
 }
 
 /* --- Chrome -------------------------------------------------------------- */
@@ -297,6 +357,12 @@ function Screen({ state, children }) {
 
 function OverviewScreen() {
   const state = useLoader(useCallback(() => clientApi.me(), []));
+  /*
+   * Positions are fetched separately from the trip summary: they change every
+   * few seconds while a trip is running, and re-fetching the whole overview on
+   * that cadence would be wasteful and make the staff counts flicker.
+   */
+  const positions = useLoader(useCallback(() => clientApi.livePositions(), []));
 
   if (state.loading && !state.data) {
     return (
@@ -321,6 +387,12 @@ function OverviewScreen() {
 
   const s = state.data?.stats || {};
   const trips = state.data?.liveTrips || [];
+
+  // Index the positions by trip so each card can show its own vehicle.
+  const byTrip = new Map();
+  (positions.data?.data || []).forEach((p) => {
+    if (p.tripId) byTrip.set(p.tripId, p);
+  });
 
   return (
     <Screen state={state}>
@@ -364,11 +436,47 @@ function OverviewScreen() {
               <View style={styles.bar}>
                 <View style={[styles.barFill, { width: `${Math.round(pct * 100)}%` }]} />
               </View>
+              <VehiclePosition position={byTrip.get(t.id)} />
             </Card>
           );
         })
       )}
     </Screen>
+  );
+}
+
+/**
+ * Where this vehicle was a moment ago.
+ *
+ * The client cannot see a street map here - that would need a tile key in the
+ * app bundle - so this gives the two things they can act on: roughly where the
+ * bus is, and who to ring about it. Position is reported as the nearest stop on
+ * the route, which is more meaningful than a pair of coordinates.
+ */
+function VehiclePosition({ position }) {
+  if (!position) {
+    return <Text style={styles.posNone}>Position not reported yet.</Text>;
+  }
+
+  const when = position.ageSeconds == null
+    ? ''
+    : position.ageSeconds < 60
+      ? 'just now'
+      : `${Math.floor(position.ageSeconds / 60)} min ago`;
+
+  return (
+    <View style={styles.posBox}>
+      <View style={styles.posRow}>
+        <View style={[styles.posDot, position.stale ? styles.posDotStale : null]} />
+        <Text style={styles.posText}>
+          {position.stale ? 'Last seen' : 'On the way'} {'\u00B7'} {when}
+        </Text>
+      </View>
+      <Text style={styles.posCoords}>
+        {Number(position.lat).toFixed(4)}, {Number(position.lon).toFixed(4)}
+        {position.speedKph > 3 ? ` \u00B7 ${Math.round(position.speedKph)} km/h` : ' \u00B7 stopped'}
+      </Text>
+    </View>
   );
 }
 
@@ -710,10 +818,19 @@ function StatementScreen() {
 
 function RequestsScreen() {
   const state = useLoader(useCallback(() => clientApi.requests(), []));
-  const [category, setCategory] = useState('route-change');
+  const [kind, setKind] = useState('ad-hoc-trip');
+  const [category, setCategory] = useState('vehicle');
   const [priority, setPriority] = useState('normal');
   const [subject, setSubject] = useState('');
   const [detail, setDetail] = useState('');
+  // Ride-request fields. These are what let the transport desk schedule the
+  // journey; a request without them can only be answered with a reply, which is
+  // why the old free-text-only form went nowhere.
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
+  const [pickupPoint, setPickupPoint] = useState('');
+  const [dropPoint, setDropPoint] = useState('');
+  const [headcount, setHeadcount] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -732,19 +849,40 @@ function RequestsScreen() {
       setErr('Give the request a summary the office will understand.');
       return;
     }
+    /*
+     * A ride request is worthless to the desk without a headcount and a pickup
+     * point - they cannot assign a vehicle to "some people, somewhere". Check
+     * them here so the message is specific, and let the server enforce it again.
+     */
+    if (kind !== 'general') {
+      if (!pickupPoint.trim()) { setErr('Where should the vehicle collect your staff?'); return; }
+      const people = Number(headcount);
+      if (!people || people < 1) { setErr('How many people is this for?'); return; }
+    }
     setErr('');
     setBusy(true);
     try {
       // The record field is `subject`; the label says "summary" because that
       // reads better. Do not send `title` - the API ignores it.
       await clientApi.raiseRequest({
-        category,
+        kind,
+        category: kind === 'general' ? category : 'vehicle',
         priority,
         subject: subject.trim(),
         detail: detail.trim(),
+        date,
+        time,
+        pickupPoint: pickupPoint.trim(),
+        dropPoint: dropPoint.trim(),
+        headcount: Number(headcount) || 0,
       });
       setSubject('');
       setDetail('');
+      setDate('');
+      setTime('');
+      setPickupPoint('');
+      setDropPoint('');
+      setHeadcount('');
       state.reload();
       Alert.alert('Request sent', 'The transport desk will respond shortly.');
     } catch (e) {
@@ -769,10 +907,83 @@ function RequestsScreen() {
       <Card>
         <Text style={styles.cardTitle}>Raise a request</Text>
         <Text style={styles.muted}>
-          Ask for a new pickup point, a shift change, or an extra vehicle.
+          Ask for a vehicle, a new pickup point, or a shift change. Ask for a
+          vehicle and the office will confirm the driver and vehicle back to you.
         </Text>
 
-        {categories.map((c) => (
+        {/*
+          The two kinds behave differently at the desk: a ride request can be
+          scheduled into a trip, a note can only be answered. Naming that
+          difference here stops people raising a ride as a vague note and then
+          wondering why nothing happened.
+        */}
+        <View style={styles.priorityRow}>
+          {[
+            { key: 'ad-hoc-trip', label: 'I need a vehicle' },
+            { key: 'general', label: 'Something else' },
+          ].map((k) => (
+            <TouchableOpacity
+              key={k.key}
+              style={[styles.chip, kind === k.key && styles.chipOn]}
+              onPress={() => setKind(k.key)}
+            >
+              <Text style={[styles.chipText, kind === k.key && styles.chipTextOn]}>{k.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {kind !== 'general' && (
+          <>
+            <Field label="Date">
+              <TextInput
+                style={styles.input}
+                value={date}
+                onChangeText={setDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={colors.textDim}
+              />
+            </Field>
+            <Field label="Pickup time">
+              <TextInput
+                style={styles.input}
+                value={time}
+                onChangeText={setTime}
+                placeholder="e.g. 23:15"
+                placeholderTextColor={colors.textDim}
+              />
+            </Field>
+            <Field label="Pick up from">
+              <TextInput
+                style={styles.input}
+                value={pickupPoint}
+                onChangeText={setPickupPoint}
+                placeholder="e.g. Plant Gate 3, Mundhwa"
+                placeholderTextColor={colors.textDim}
+              />
+            </Field>
+            <Field label="Drop at (optional)">
+              <TextInput
+                style={styles.input}
+                value={dropPoint}
+                onChangeText={setDropPoint}
+                placeholder="e.g. Katraj Chowk"
+                placeholderTextColor={colors.textDim}
+              />
+            </Field>
+            <Field label="How many people">
+              <TextInput
+                style={styles.input}
+                value={headcount}
+                onChangeText={setHeadcount}
+                keyboardType="numeric"
+                placeholder="e.g. 8"
+                placeholderTextColor={colors.textDim}
+              />
+            </Field>
+          </>
+        )}
+
+        {kind === 'general' && categories.map((c) => (
           <TouchableOpacity
             key={c.key}
             style={styles.choice}
@@ -842,11 +1053,40 @@ function RequestsScreen() {
                   {r.subject}
                 </Text>
                 <Text style={styles.tiny}>
+                  {r.kind && r.kind !== 'general' ? `${statusLabel(r.kind)} \u00B7 ` : ''}
                   {statusLabel(r.category)}
                   {r.priority && r.priority !== 'normal' ? ` \u00B7 ${r.priority}` : ''}
                   {` \u00B7 raised ${date(r.createdAt)}`}
                 </Text>
+
+                {/*
+                  Ride detail, so the request reads back the way it was sent and
+                  the client can check the office got the right numbers.
+                */}
+                {r.kind && r.kind !== 'general' ? (
+                  <Text style={styles.tiny}>
+                    {r.headcount ? `${r.headcount} people \u00B7 ` : ''}
+                    {r.pickupPoint ? `from ${r.pickupPoint}` : ''}
+                    {r.dropPoint ? ` to ${r.dropPoint}` : ''}
+                    {r.date ? ` \u00B7 ${r.date}` : ''}
+                    {r.time ? ` at ${r.time}` : ''}
+                  </Text>
+                ) : null}
+
                 {r.detail ? <Text style={styles.tiny}>{r.detail}</Text> : null}
+
+                {/*
+                  The confirmation the client was previously never shown: which
+                  vehicle and driver to expect, once the office approves.
+                */}
+                {r.trip ? (
+                  <Text style={styles.responseText}>
+                    Confirmed: {r.trip.vehicleRegNo || 'vehicle'} on {r.trip.date}
+                    {r.trip.driverName ? ` \u00B7 ${r.trip.driverName}` : ''}
+                    {r.trip.driverPhone ? ` \u00B7 ${r.trip.driverPhone}` : ''}
+                  </Text>
+                ) : null}
+
                 {r.response ? <Text style={styles.responseText}>Office: {r.response}</Text> : null}
               </View>
               <Badge status={r.status} />
@@ -930,6 +1170,21 @@ const styles = StyleSheet.create({
   bar: { height: 5, borderRadius: 3, backgroundColor: colors.surface2, marginTop: 9, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: colors.ok, borderRadius: 3 },
 
+  // Where the vehicle is. Kept visually quieter than the boarding progress,
+  // since it is supporting detail rather than the main figure on the card.
+  posBox: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  posRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  posDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ok },
+  posDotStale: { backgroundColor: colors.warn },
+  posText: { flex: 1, fontSize: 12, color: colors.text, fontWeight: '600' },
+  posCoords: { fontSize: 11.5, color: colors.textDim, marginTop: 3, fontVariant: ['tabular-nums'] },
+  posNone: { fontSize: 11.5, color: colors.textDim, marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
 
@@ -1011,6 +1266,11 @@ const styles = StyleSheet.create({
   choiceText: { flex: 1, fontSize: 14.5, color: colors.text },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border },
   radioOn: { borderColor: colors.brand, borderWidth: 6 },
+  checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  checkBox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: colors.border, color: 'transparent', textAlign: 'center', lineHeight: 20 },
+  checkBoxOn: { backgroundColor: colors.brand, borderColor: colors.brand, color: '#fff' },
+  rowTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  btnDisabled: { opacity: 0.55 },
 
   priorityRow: { flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.md },
   chip: {

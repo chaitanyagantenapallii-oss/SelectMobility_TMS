@@ -25,7 +25,7 @@ router.post('/login', (req, res) => {
   res.json({
     token,
     expiresInHours: config.sessionHours,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, accountType: user.accountType || 'live', organisation: user.organisation || null },
     company: config.company,
   });
 });

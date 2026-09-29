@@ -20,7 +20,7 @@
 
   let me = null;
   let tab = (location.hash || '#overview').slice(1);
-  if (!['overview', 'roster', 'history', 'statement', 'requests'].includes(tab)) tab = 'overview';
+  if (!['overview', 'roster', 'history', 'statement', 'requests', 'bookings'].includes(tab)) tab = 'overview';
 
   /* --- Boot -------------------------------------------------------------- */
 
@@ -75,6 +75,7 @@
     if (tab === 'roster') return renderRoster();
     if (tab === 'history') return renderHistory();
     if (tab === 'statement') return renderStatement();
+    if (tab === 'bookings') return renderBookings();
     return renderRequests();
   }
 
@@ -186,7 +187,8 @@
     }
 
     if (!rows.length) {
-      view.innerHTML = Mobile.empty('\u{1F465}', 'No staff registered', 'Your employees will appear here once the office adds them.');
+      view.innerHTML = `<div class="card"><h2>Register staff member</h2><p class="muted">Create an individual employee login for this client organisation.</p><button class="btn primary" id="staff-add">Register staff login</button></div>`;
+      $('#staff-add', view).addEventListener('click', registerStaff);
       return;
     }
 
@@ -205,7 +207,7 @@
       <div class="card flat" style="padding:12px 14px">
         <div class="row between">
           <span class="muted">${rows.length} staff across ${byRoute.size} route${byRoute.size === 1 ? '' : 's'}</span>
-          <span class="muted">${rows.filter((e) => e.status === 'active').length} active</span>
+          <span><span class="muted" style="margin-right:10px">${rows.filter((e) => e.status === 'active').length} active</span><button class="btn sm primary" id="staff-add">+ Register staff</button></span>
         </div>
       </div>
       ${[...byRoute.entries()].map(([route, people]) => `
@@ -224,6 +226,18 @@
     $$('[data-emp]', view).forEach((el) =>
       el.addEventListener('click', () => showEmployee(el.dataset.emp))
     );
+    $('#staff-add', view).addEventListener('click', registerStaff);
+  }
+
+  async function registerStaff() {
+    const name = window.prompt('Employee full name:'); if (!name) return;
+    const email = window.prompt('Employee login email:'); if (!email) return;
+    const password = window.prompt('Temporary password (minimum 8 characters):', 'Welcome@2026'); if (!password) return;
+    const department = window.prompt('Department:', 'Operations') || 'General';
+    const phone = window.prompt('Mobile number:', '') || '';
+    const stop = window.prompt('Pickup stop:', '') || '';
+    try { const r = await Api.post('/mobile/client/staff', { name, email, password, department, phone, stop }); Mobile.toast(`${r.message} Login: ${r.login.email}`, 'ok'); await renderRoster(); }
+    catch (err) { Mobile.toast(err.message, 'err'); }
   }
 
   /* --- Employee history -------------------------------------------------- */
@@ -425,6 +439,102 @@
 
   /* --- Requests ---------------------------------------------------------- */
 
+  async function renderBookings() {
+    title.textContent = 'Book staff';
+    return renderEndUserBooking();
+    /* Legacy seat-booking view retained below for migration reference. */
+    view.innerHTML = Mobile.skeleton(5);
+    try {
+      const [tripRes, rosterRes] = await Promise.all([
+        Api.get('/mobile/client/available-trips'),
+        Api.get('/mobile/client/roster'),
+      ]);
+      const trips = tripRes.data || [];
+      const staff = (rosterRes.data || []).filter((e) => e.status === 'active');
+      if (!trips.length || !staff.length) {
+        view.innerHTML = `<div class="card">
+          <h2>Request a vehicle</h2>
+          <p class="muted">There are no open trips yet. Request transport and the control tower will allocate a vehicle and driver.</p>
+          <button class="btn primary" id="bk-request">Request a vehicle</button>
+        </div>
+        <div class="card"><h2>Seat booking</h2><p class="muted">Once the transport desk publishes a trip, you can reserve seats for your staff here.</p></div>`;
+        $('#bk-request', view).addEventListener('click', () => {
+          tab = 'requests';
+          history.replaceState(null, '', '#requests');
+          render();
+        });
+        return;
+      }
+      view.innerHTML = `
+        <div class="card flat" style="padding:12px 14px">
+          <div class="row" style="gap:12px;align-items:flex-start">
+            <strong style="color:var(--brand)">1</strong><div><strong>Request transport</strong><div class="tiny">Ask the control tower for a vehicle, driver and route.</div></div>
+            <strong style="color:var(--brand);margin-left:8px">2</strong><div><strong>Reserve staff</strong><div class="tiny">After approval, reserve employees on the confirmed trip.</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Reserve staff seats</h2>
+          <p class="muted" style="margin-top:0">Use this only after the control tower has confirmed a vehicle request.</p>
+          <button class="btn" id="bk-request">Start with a vehicle request</button>
+          <div class="field"><label for="bk-trip">Upcoming trip</label><select id="bk-trip">${trips.map((t) => `<option value="${escapeHtml(t.id)}">${Fmt.date(t.date)} · ${escapeHtml(t.routeCode)} ${escapeHtml(t.routeName)} · ${escapeHtml(t.shiftName)} · ${t.booked}/${t.capacity} booked</option>`).join('')}</select></div>
+          <div class="field"><label>Staff travelling</label><div class="check-list">${staff.map((e) => `<label class="check-row"><input type="checkbox" class="bk-staff" value="${escapeHtml(e.id)}"><span><strong>${escapeHtml(e.name)}</strong><small>${escapeHtml(e.code)} · ${escapeHtml(e.stop || 'no stop')}</small></span></label>`).join('')}</div></div>
+          <div class="err" id="bk-err"></div>
+          <button class="btn primary" id="bk-submit">Confirm bookings</button>
+        </div>
+        <div class="card"><h2>Booking guidance</h2><p class="muted">Duplicate bookings and trips without available seats are blocked automatically. Safe-drop and boarding remain visible to the driver and control tower.</p></div>`;
+      $('#bk-submit', view).addEventListener('click', (e) => submitBookings(e.currentTarget));
+      $('#bk-request', view).addEventListener('click', () => {
+        tab = 'requests';
+        history.replaceState(null, '', '#requests');
+        render();
+      });
+    } catch (err) {
+      view.innerHTML = Mobile.empty('\u26A0', 'Could not load open trips', err.message);
+    }
+  }
+
+  async function renderEndUserBooking() {
+    view.innerHTML = `
+      <div class="card">
+        <h2>Book a vehicle</h2>
+        <p class="muted" style="margin-top:0">Submit your booking directly to SMIPL. The allocation engine selects the nearest available driver and vehicle, then the transport desk monitors the trip.</p>
+        <div class="grid-2">
+          <div class="field"><label for="eb-date">Travel date</label><input id="eb-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="field"><label for="eb-time">Pickup time</label><input id="eb-time" type="time" value="09:00"></div>
+          <div class="field"><label for="eb-pickup">Pickup point</label><input id="eb-pickup" placeholder="e.g. Hinjawadi Phase 1 Gate"></div>
+          <div class="field"><label for="eb-drop">Drop point</label><input id="eb-drop" placeholder="e.g. SMIPL Plant 2"></div>
+          <div class="field"><label for="eb-count">Employees travelling</label><input id="eb-count" type="number" min="1" max="6" value="1"></div>
+          <div class="field"><label for="eb-priority">Priority</label><select id="eb-priority"><option value="normal">Normal</option><option value="high">High / safety sensitive</option></select></div>
+          <div class="field" style="grid-column:1/-1"><label for="eb-notes">Special requirement</label><textarea id="eb-notes" placeholder="Escort, accessibility, return trip or other requirement"></textarea></div>
+        </div>
+        <div class="err" id="eb-error"></div><button class="btn primary" id="eb-submit">Send booking to SMIPL</button>
+      </div>
+      <div class="card"><h2>What happens next?</h2><div class="kv"><span>1. Client booking</span><b>Request ID created</b></div><div class="kv"><span>2. SMIPL admin</span><b>Booking appears in the dispatch queue</b></div><div class="kv"><span>3. Allocation engine</span><b>Nearest eligible driver and vehicle selected</b></div><div class="kv"><span>4. Driver</span><b>Accepts, starts, boards and safely completes</b></div></div>`;
+    $('#eb-submit', view).addEventListener('click', async (e) => {
+      const error = $('#eb-error', view); error.textContent = '';
+      const pickup = $('#eb-pickup', view).value.trim(); const drop = $('#eb-drop', view).value.trim();
+      if (!pickup || !drop) { error.textContent = 'Enter both pickup and drop points.'; return; }
+      await Mobile.withBusy(e.currentTarget, 'Assigning', async () => {
+        try { const r = await Api.post('/mobile/client/booking-requests', { date: $('#eb-date', view).value, time: $('#eb-time', view).value, pickupPoint: pickup, dropPoint: drop, headcount: Number($('#eb-count', view).value || 1), priority: $('#eb-priority', view).value, notes: $('#eb-notes', view).value.trim() }); Mobile.toast(`${r.request.id}: ${r.message}`, 'ok'); await refresh(false); } catch (err) { error.textContent = err.message; }
+      });
+    });
+  }
+
+  async function submitBookings(btn) {
+    const ids = $$('.bk-staff:checked', view).map((el) => el.value);
+    const errEl = $('#bk-err', view);
+    if (!ids.length) { errEl.textContent = 'Select at least one staff member.'; return; }
+    await Mobile.withBusy(btn, 'Confirming', async () => {
+      try {
+        const res = await Api.post('/mobile/client/bookings', { tripId: $('#bk-trip', view).value, employeeIds: ids });
+        Mobile.toast(res.message || 'Bookings confirmed', 'ok');
+        await refresh(false);
+        tab = 'bookings';
+        renderBookings();
+      } catch (err) { errEl.textContent = err.message; }
+    });
+  }
+
   async function renderRequests() {
     title.textContent = 'Requests';
     view.innerHTML = Mobile.skeleton(3);
@@ -441,12 +551,13 @@
 
     view.innerHTML = `
       <div class="card">
-        <h2>Raise a request</h2>
-        <p class="muted" style="margin-top:0">Ask for a new pickup point, a shift change, or an extra vehicle.</p>
+        <h2>Request transport</h2>
+        <p class="muted" style="margin-top:0">Submit the demand. SMIPL validates it, clubs the route, allocates a vendor vehicle and assigns a driver.</p>
         <div class="grid-2">
           <div class="field">
-            <label for="rq-kind">What do you need?</label>
+            <label for="rq-kind">Request type</label>
             <select id="rq-kind">
+              <option value="transport-demand">New transport demand</option>
               <option value="route-change">Add or change a pickup point</option>
               <option value="timing">Change a shift timing</option>
               <option value="vehicle">Extra vehicle on a route</option>
@@ -463,7 +574,24 @@
               <option value="low">Whenever convenient</option>
             </select>
           </div>
+          <div class="field">
+            <label for="rq-date">Travel date</label>
+            <input id="rq-date" type="date" value="${new Date().toISOString().slice(0, 10)}">
+          </div>
+          <div class="field">
+            <label for="rq-time">Shift / pickup time</label>
+            <input id="rq-time" type="time">
+          </div>
+          <div class="field">
+            <label for="rq-headcount">Employees travelling</label>
+            <input id="rq-headcount" type="number" min="1" value="1">
+          </div>
         </div>
+        <div class="grid-2">
+          <div class="field"><label for="rq-pickup">Pickup point / area</label><input id="rq-pickup" placeholder="e.g. Hinjawadi Phase 1 Gate"></div>
+          <div class="field"><label for="rq-drop">Drop point / destination</label><input id="rq-drop" placeholder="e.g. SMIPL Plant 2"></div>
+        </div>
+        <div class="field"><label for="rq-safety">Safety or service preference</label><input id="rq-safety" placeholder="e.g. security escort, women-only pickup, wheelchair access"></div>
         <div class="field">
           <label for="rq-title">Short summary</label>
           <input id="rq-title" maxlength="80" placeholder="e.g. Extra pickup at Blue Ridge Gate">
@@ -514,10 +642,16 @@
     await Mobile.withBusy(btn, 'Sending', async () => {
       try {
         await Api.post('/mobile/client/requests', {
-          category: $('#rq-kind', view).value,
+          category: $('#rq-kind', view).value === 'transport-demand' ? 'vehicle' : $('#rq-kind', view).value,
+          kind: ['transport-demand', 'vehicle'].includes($('#rq-kind', view).value) ? 'ad-hoc-trip' : 'general',
           priority: $('#rq-priority', view).value,
           subject: value,
-          detail: $('#rq-detail', view).value.trim(),
+          detail: [$('#rq-detail', view).value.trim(), $('#rq-safety', view).value.trim() ? `Safety preference: ${$('#rq-safety', view).value.trim()}` : ''].filter(Boolean).join('\n'),
+          date: $('#rq-date', view).value,
+          time: $('#rq-time', view).value,
+          pickupPoint: $('#rq-pickup', view).value.trim(),
+          dropPoint: $('#rq-drop', view).value.trim(),
+          headcount: Number($('#rq-headcount', view).value || 0),
         });
         Mobile.toast('Request sent', 'ok');
         await renderRequests();

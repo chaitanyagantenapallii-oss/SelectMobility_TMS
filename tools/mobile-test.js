@@ -372,6 +372,76 @@ async function signIn(email, password) {
   check(adminStillWorks.status === 200, 'the read gate does not block staff',
     `admin got ${adminStillWorks.status} with ${(adminStillWorks.body.data || []).length} rows`);
 
+  /* --- Live tracking ------------------------------------------------------
+   *
+   * The desk tracking view is only as good as what the phone sends, so these
+   * cover the write path a driver uses and the scoping a client is held to.
+   */
+
+  const badFix = await req('POST', '/api/mobile/driver/location',
+    { token: driverToken, body: { lat: 0, lon: 0 } });
+  check(badFix.status === 400, 'a null-island GPS fix is refused', `status ${badFix.status}`);
+
+  const outOfRange = await req('POST', '/api/mobile/driver/location',
+    { token: driverToken, body: { lat: 999, lon: 20 } });
+  check(outOfRange.status === 400, 'an out-of-range latitude is refused', `status ${outOfRange.status}`);
+
+  const notNumeric = await req('POST', '/api/mobile/driver/location',
+    { token: driverToken, body: { lat: 'north', lon: 73 } });
+  check(notNumeric.status === 400, 'a non-numeric position is refused', `status ${notNumeric.status}`);
+
+  const goodPing = await req('POST', '/api/mobile/driver/location',
+    { token: driverToken, body: { lat: 18.5983, lon: 73.7625, speedKph: 27 } });
+  check(goodPing.status === 201, 'a driver can report a position', `status ${goodPing.status}`);
+  check(
+    goodPing.body && goodPing.body.ping && goodPing.body.ping.speedKph === 27,
+    'the reported speed is echoed back',
+    goodPing.body && goodPing.body.ping ? `${goodPing.body.ping.speedKph} km/h` : 'no ping'
+  );
+
+  /*
+   * Deriving speed when the phone omits it. A sub-second gap must carry the
+   * last known figure rather than collapsing to 0, which would show a moving
+   * bus as stopped.
+   */
+  const implied = await req('POST', '/api/mobile/driver/location',
+    { token: driverToken, body: { lat: 18.5990, lon: 73.7630 } });
+  check(implied.status === 201, 'a position without a speed is accepted', `status ${implied.status}`);
+  check(
+    implied.body && implied.body.ping && implied.body.ping.speedKph > 0,
+    'an omitted speed does not read as stationary',
+    implied.body && implied.body.ping ? `${implied.body.ping.speedKph} km/h` : 'no ping'
+  );
+
+  const deskLive = await req('GET', '/api/tracking/live', { token: adminToken });
+  check(deskLive.status === 200, 'the desk can read live positions', `status ${deskLive.status}`);
+  check(
+    deskLive.body && deskLive.body.meta && typeof deskLive.body.meta.moving === 'number',
+    'the live view reports a moving count',
+    deskLive.body && deskLive.body.meta ? JSON.stringify(deskLive.body.meta) : ''
+  );
+
+  const driverOnDesk = await req('GET', '/api/tracking/live', { token: driverToken });
+  check(driverOnDesk.status === 403, 'a driver cannot read the desk tracking view',
+    `status ${driverOnDesk.status}`);
+
+  const clientVehicles = await req('GET', '/api/mobile/client/vehicles', { token: clientToken });
+  check(clientVehicles.status === 200, 'a client can read its own vehicles',
+    `status ${clientVehicles.status}`);
+  const clientRows = (clientVehicles.body && clientVehicles.body.data) || [];
+  check(
+    clientRows.every((r) => r.lat !== undefined && r.lon !== undefined),
+    'every client vehicle row carries a position',
+    `${clientRows.length} row(s)`
+  );
+
+  const otherTrail = await req('GET', '/api/mobile/client/trips/TRP00001/tracking', { token: clientToken });
+  check(
+    otherTrail.status === 403 || otherTrail.status === 404,
+    'a client cannot read a trip that is not carrying its staff',
+    `status ${otherTrail.status}`
+  );
+
   console.log(`\n=== RESULT: ${passes.length} passed, ${fails.length} failed ===\n`);
   if (fails.length) {
     console.log('FAILURES:');

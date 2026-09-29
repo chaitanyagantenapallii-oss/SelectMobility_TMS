@@ -37,7 +37,7 @@ import {
   clearSession,
   getUser,
   restoreSession,
-} from '../mobile-shared/api';
+} from './src/api';
 import {
   colors,
   spacing,
@@ -46,8 +46,9 @@ import {
   num,
   statusColor,
   statusLabel,
-} from '../mobile-shared/theme';
-import SignIn from '../mobile-shared/SignIn';
+} from './src/theme';
+import SignIn from './src/SignIn';
+import { useTripTracking } from './src/tracking';
 
 const TABS = [
   { key: 'today', label: 'Today' },
@@ -352,6 +353,44 @@ function TripCard({ trip, onPress }) {
 
 /* --- Manifest ------------------------------------------------------------ */
 
+/**
+ * A quiet line telling the driver that the office can see them.
+ *
+ * Worth showing: a driver who does not know they are being tracked assumes
+ * either that they are not (and may not worry about a failed permission) or
+ * that they are being watched without being told. Saying so plainly, and
+ * showing when the last position actually went, is the honest version.
+ */
+function TrackingBanner({ tracking }) {
+  const { reporting, lastAt, lastError, sent } = tracking;
+
+  if (lastError) {
+    return (
+      <View style={styles.trackBannerWarn}>
+        <Text style={styles.trackTextWarn}>{lastError}</Text>
+      </View>
+    );
+  }
+  if (!reporting) {
+    return (
+      <View style={styles.trackBannerWarn}>
+        <Text style={styles.trackTextWarn}>Starting location sharing...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.trackBanner}>
+      <View style={styles.trackDot} />
+      <Text style={styles.trackText}>
+        Sharing this vehicle's location with the office
+        {lastAt ? ` \u00B7 last sent ${lastAt.toLocaleTimeString('en-IN', { hour12: false })}` : ''}
+        {sent ? ` \u00B7 ${sent} update${sent === 1 ? '' : 's'}` : ''}
+      </Text>
+    </View>
+  );
+}
+
 function ManifestScreen({ tripId, onClose }) {
   const state = useLoader(useCallback(() => driverApi.trip(tripId), [tripId]));
   const [busyBooking, setBusyBooking] = useState(null);
@@ -402,6 +441,50 @@ function ManifestScreen({ tripId, onClose }) {
 
   const open = t.status === 'scheduled';
   const running = t.status === 'in-progress';
+  const [acceptBusy, setAcceptBusy] = useState(false);
+
+  const acceptAssignment = async () => {
+    setAcceptBusy(true);
+    try {
+      await driverApi.accept(tripId);
+      state.reload();
+    } catch (err) {
+      Alert.alert('Could not accept assignment', err.message);
+    } finally {
+      setAcceptBusy(false);
+    }
+  };
+
+  const requestReassignment = () => {
+    Alert.alert(
+      'Request reassignment',
+      'Ask the SMIPL desk to reassign this trip if you are unavailable.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Request',
+          onPress: async () => {
+            setAcceptBusy(true);
+            try {
+              await driverApi.reject(tripId, 'Driver unavailable; reassignment requested from Driver app.');
+              state.reload();
+            } catch (err) {
+              Alert.alert('Could not request reassignment', err.message);
+            } finally {
+              setAcceptBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  /*
+   * Keep the office informed of where this bus is while the trip is running.
+   * The hook starts reporting when `running` flips true and stops the moment
+   * the driver completes the trip or leaves this screen.
+   */
+  const tracking = useTripTracking(running, tripId);
 
   return (
     <Screen state={state}>
@@ -412,6 +495,7 @@ function ManifestScreen({ tripId, onClose }) {
           </Text>
           <Badge status={t.status} />
         </View>
+        {running ? <TrackingBanner tracking={tracking} /> : null}
         <KV k="Date" v={`${date(t.date)}`} />
         <KV k="Shift" v={`${t.shift.name} (${t.shift.pickupStart}\u2013${t.shift.pickupEnd})`} />
         <KV k="Vehicle" v={`${t.vehicle.regNo} \u00B7 ${t.vehicle.model}`} />
@@ -424,12 +508,23 @@ function ManifestScreen({ tripId, onClose }) {
       </Card>
 
       {open && (
-        <TouchableOpacity
-          style={[styles.btn, styles.btnPrimary]}
-          onPress={() => startTrip(t, state)}
-        >
-          <Text style={styles.btnPrimaryText}>Start this trip</Text>
-        </TouchableOpacity>
+        <>
+          {t.driverAcceptance === 'pending' ? (
+            <Card>
+              <Text style={styles.cardTitle}>Assignment awaiting your response</Text>
+              <Text style={styles.muted}>Accept this trip before the start odometer becomes available.</Text>
+              <View style={styles.btnRow}>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={requestReassignment} disabled={acceptBusy}>
+                  <Text style={styles.btnText}>Request reassignment</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnOk]} onPress={acceptAssignment} disabled={acceptBusy}>
+                  {acceptBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Accept assignment</Text>}
+                </TouchableOpacity>
+              </View>
+            </Card>
+          ) : null}
+          {t.driverAcceptance === 'accepted' ? <StartTrip trip={t} onStart={() => state.reload()} /> : null}
+        </>
       )}
       {running && (
         <CloseOutTrip trip={t} tripId={tripId} onDone={() => state.reload()} />
@@ -490,13 +585,79 @@ function ManifestScreen({ tripId, onClose }) {
   );
 }
 
-async function startTrip(trip, state) {
-  try {
-    await driverApi.start(trip.id, trip.odometerStart || undefined);
-    state.reload();
-  } catch (err) {
-    Alert.alert('Could not start the trip', err.message);
+/**
+ * Starting a trip needs a beginning odometer reading, and the server rejects a
+ * start without one. A brand-new trip has no reading recorded, so the old
+ * version of this button sent `undefined` every time and could never succeed —
+ * it just showed "Enter a valid starting odometer reading." with nowhere to
+ * type one. Collecting it inline, the same way closing out does, fixes that.
+ */
+function StartTrip({ trip, onStart }) {
+  const [open, setOpen] = useState(false);
+  const [odo, setOdo] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const value = Number(odo);
+    if (!value) {
+      setErr('Enter the odometer reading.');
+      return;
+    }
+    setErr('');
+    setBusy(true);
+    try {
+      await driverApi.start(trip.id, value);
+      setOpen(false);
+      onStart();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.btnPrimary]}
+        onPress={() => setOpen(true)}
+      >
+        <Text style={styles.btnPrimaryText}>Start this trip</Text>
+      </TouchableOpacity>
+    );
   }
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>Start this trip</Text>
+      <Field label="Odometer reading now (km)">
+        <TextInput
+          style={styles.input}
+          value={odo}
+          onChangeText={setOdo}
+          keyboardType="numeric"
+          placeholder="41234"
+          placeholderTextColor={colors.textDim}
+        />
+      </Field>
+      <Text style={styles.tiny}>
+        The distance you run is worked out from this reading, so enter what the
+        dashboard shows now.
+      </Text>
+      {err ? <Text style={styles.fieldErr}>{err}</Text> : null}
+      <TouchableOpacity
+        style={[styles.btn, styles.btnPrimary]}
+        onPress={submit}
+        disabled={busy}
+      >
+        <Text style={styles.btnPrimaryText}>{busy ? 'Starting\u2026' : 'Start trip'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.btn} onPress={() => { setOpen(false); setErr(''); }}>
+        <Text style={styles.btnText}>Cancel</Text>
+      </TouchableOpacity>
+    </Card>
+  );
 }
 
 /** Closing out needs the odometer, so it expands inline rather than in a modal. */
@@ -748,7 +909,10 @@ function FuelForm() {
       // internal id, so requiring one would block the common case.
       await driverApi.fuel({
         litres,
-        cost,
+        // The API field is `amount`, not `cost`. Sending `cost` made every
+        // fuel entry fail validation with "Enter the amount paid." even though
+        // the amount had been typed in — the value was silently dropped.
+        amount: cost,
         odometer: Number(form.odometer) || undefined,
         station: form.station.trim() || undefined,
         date: new Date().toISOString().slice(0, 10),
@@ -965,6 +1129,30 @@ const styles = StyleSheet.create({
   bar: { height: 5, borderRadius: 3, backgroundColor: colors.surface2, marginTop: 9, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: colors.ok, borderRadius: 3 },
 
+  // Location sharing. Deliberately low-key: it is reassurance, not an alert.
+  trackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.okSoft,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.sm + 2,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  trackDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ok },
+  trackText: { flex: 1, fontSize: 12, color: colors.ok, lineHeight: 16 },
+  trackBannerWarn: {
+    backgroundColor: colors.warnSoft,
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: spacing.sm + 2,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  trackTextWarn: { fontSize: 12, color: colors.warn, lineHeight: 16 },
+
   badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
   badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
 
@@ -1021,6 +1209,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   btnText: { fontSize: 16, fontWeight: '600', color: colors.text },
+  btnCancel: { backgroundColor: colors.surface2, borderColor: colors.border },
   btnPrimary: { backgroundColor: colors.brand, borderColor: colors.brand },
   btnPrimaryText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   btnOk: { backgroundColor: colors.ok, borderColor: colors.ok },

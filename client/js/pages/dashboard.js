@@ -6,22 +6,52 @@
 
 const DashboardPage = {
   async render(container) {
-    const { data } = await Api.get('/dashboard/overview');
+    const [{ data }, tracking] = await Promise.all([
+      Api.get('/dashboard/overview'),
+      Api.get('/tracking'),
+    ]);
     const k = data.kpis;
 
     container.innerHTML = `
       <div class="grid cols-4" style="margin-bottom:18px">
-        ${this.statCard('Fleet Availability', `${Fmt.pct(k.fleetAvailabilityPct)}`, `${k.activeVehicles} of ${k.totalVehicles} vehicles running`, 'ok', '&#128666;')}
-        ${this.statCard('Trips Today', `${k.tripsToday}`, `${k.completedToday} completed \u00B7 ${k.tripsToday - k.completedToday} in progress`, 'info', '&#128652;')}
-        ${this.statCard('Employee Boarding', k.attendanceRate === null ? 'n/a' : Fmt.pct(k.attendanceRate), `${k.activeEmployees} active staff on ${data.routeLoad.length} routes`, 'ok', '&#128101;')}
-        ${this.statCard('Open Incidents', `${k.openIncidents}`, `${k.complianceAlerts} compliance alerts due`, k.openIncidents ? 'danger' : 'ok', '&#128680;')}
+        ${this.statCard('Fleet Availability', `${Fmt.pct(k.fleetAvailabilityPct)}`, `${k.activeVehicles} of ${k.totalVehicles} vehicles running`, 'ok', '&#128666;', 'vehicles')}
+        ${this.statCard('Trips Today', `${k.tripsToday}`, `${k.completedToday} completed \u00B7 ${k.tripsToday - k.completedToday} in progress`, 'info', '&#128652;', 'trips')}
+        ${this.statCard('Employee Boarding', k.attendanceRate === null ? 'n/a' : Fmt.pct(k.attendanceRate), `${k.activeEmployees} active staff on ${data.routeLoad.length} routes`, 'ok', '&#128101;', 'employees')}
+        ${this.statCard('Open Incidents', `${k.openIncidents}`, `${k.complianceAlerts} compliance alerts due`, k.openIncidents ? 'danger' : 'ok', '&#128680;', 'incidents')}
       </div>
 
       <div class="grid cols-4" style="margin-bottom:18px">
-        ${this.statCard('Vehicles in Workshop', `${k.vehiclesInMaintenance}`, 'Undergoing service or repair', k.vehiclesInMaintenance ? 'warn' : 'ok', '&#128295;')}
-        ${this.statCard('Drivers Available', `${k.activeDrivers}/${k.totalDrivers}`, 'Active roster strength', 'info', '&#128100;')}
-        ${this.statCard('Month Fuel Spend', Fmt.compactMoney(k.monthFuelCost), 'Diesel, CNG and charging', 'info', '&#9981;')}
-        ${this.statCard('Month Cost to Date', Fmt.compactMoney(k.monthToDateCost), `Maintenance ${Fmt.compactMoney(k.monthMaintenanceCost)}`, 'warn', '&#128176;')}
+        ${this.statCard('Vehicles in Workshop', `${k.vehiclesInMaintenance}`, 'Undergoing service or repair', k.vehiclesInMaintenance ? 'warn' : 'ok', '&#128295;', 'maintenance')}
+        ${this.statCard('Drivers Available', `${k.activeDrivers}/${k.totalDrivers}`, 'Active roster strength', 'info', '&#128100;', 'drivers')}
+        ${this.statCard('Month Fuel Spend', Fmt.compactMoney(k.monthFuelCost), 'Diesel, CNG and charging', 'info', '&#9981;', 'fuel')}
+        ${this.statCard('Month Cost to Date', Fmt.compactMoney(k.monthToDateCost), `Maintenance ${Fmt.compactMoney(k.monthMaintenanceCost)}`, 'warn', '&#128176;', 'expenses')}
+      </div>
+
+      <div class="card etms-flow-card" style="margin-bottom:18px">
+        <div class="card-head">
+          <div><h3>ETMS control flow</h3><span class="desc">Demand moves from the client request to verified billing.</span></div>
+          <a class="btn sm ghost" href="#requests">Review demand &rarr;</a>
+        </div>
+        <div class="etms-flow">
+          ${[
+            ['1', 'Demand', `${(data.workflowQueue || []).filter((x) => x.type === 'request').length} pending`, 'requests'],
+            ['2', 'Validate', 'Policy and shift check', 'requests'],
+            ['3', 'Plan', `${data.routeLoad.length} active routes`, 'routes'],
+            ['4', 'Allocate', `${k.activeVehicles} vehicles available`, 'vehicles'],
+            ['5', 'Dispatch', `${k.activeDrivers} drivers active`, 'drivers'],
+            ['6', 'Track', `${tracking.meta.live} live signals`, 'tracking'],
+            ['7', 'Verify', `${k.tripsToday} trips today`, 'manifests'],
+            ['8', 'Bill & audit', `${Fmt.compactMoney(k.monthToDateCost)} month to date`, 'reports'],
+          ].map((s, i) => `<a class="etms-stage" href="/${App.tenantSlug || 'smipl'}/${s[3]}" aria-label="Open ${escapeHtml(s[1])}"><span class="etms-stage-no">${s[0]}</span><strong>${escapeHtml(s[1])}</strong><small>${escapeHtml(s[2])}</small><em>Open module &rarr;</em>${i < 7 ? '<span class="etms-arrow">&rarr;</span>' : ''}</a>`).join('')}
+        </div>
+      </div>
+
+      <div class="card workflow-card">
+        <div class="card-head">
+          <div><h3>Operations workflow</h3><span class="desc">The next handoff across requests, trips, drivers and incidents</span></div>
+          <span class="workflow-count" id="workflow-count"></span>
+        </div>
+        <div class="workflow-list" id="workflow-list"></div>
       </div>
 
       <div class="card">
@@ -32,6 +62,22 @@ const DashboardPage = {
           <a class="btn sm ghost" href="#manifests">Open manifests &rarr;</a>
         </div>
         <div class="card-body tight" id="today-board"></div>
+      </div>
+
+      <div class="card control-tower-card">
+        <div class="card-head">
+          <h3>Control Tower · Vehicle Movement</h3>
+          <span class="desc">Live routing, roaming and signal health</span>
+          <div class="spacer"></div>
+          <a class="btn sm ghost" href="#tracking">Open live tracking &rarr;</a>
+        </div>
+        <div class="tower-summary">
+          <span><strong>${tracking.meta.moving}</strong> moving</span>
+          <span><strong>${tracking.meta.live}</strong> reporting</span>
+          <span class="${tracking.data.filter((r) => r.roaming).length ? 'tower-danger' : ''}"><strong>${tracking.data.filter((r) => r.roaming).length}</strong> roaming</span>
+          <span class="${tracking.meta.stale ? 'tower-warn' : ''}"><strong>${tracking.meta.stale}</strong> stale signals</span>
+        </div>
+        <div class="card-body tight" id="tower-board"></div>
       </div>
 
       <div class="grid cols-2">
@@ -110,6 +156,8 @@ const DashboardPage = {
     `;
 
     this.renderTodayBoard(data.todayBoard);
+    this.renderControlTower(tracking.data);
+    this.renderWorkflow(data.workflowQueue || []);
     this.renderCharts(data.utilisationSeries);
     this.renderRouteLoad(data.routeLoad);
     this.renderFleetMix(k);
@@ -118,12 +166,41 @@ const DashboardPage = {
     this.renderWorkshop(data.upcomingMaintenance);
   },
 
-  statCard(label, value, foot, tone, icon) {
-    return `<div class="stat ${tone}">
+  renderControlTower(rows) {
+    const el = currentEl('tower-board');
+    if (!el) return;
+    el.innerHTML = renderTable({
+      rows: rows.slice(0, 8),
+      emptyTitle: 'No vehicle signals yet',
+      emptyText: 'Vehicle positions will appear when a driver or GPS device reports a fix.',
+      columns: [
+        { key: 'vehicleRegNo', label: 'Vehicle', cls: 'mono' },
+        { key: 'routeCode', label: 'Route', render: (r) => r.routeCode ? `<span class="strong">${escapeHtml(r.routeCode)}</span> · ${escapeHtml(r.routeName || '')}` : '<span class="muted">Unassigned</span>' },
+        { key: 'driverName', label: 'Driver', render: (r) => escapeHtml(r.driverName || '—') },
+        { key: 'speedKph', label: 'Speed', render: (r) => `${Fmt.num(r.speedKph || 0, 1)} km/h` },
+        { key: 'roaming', label: 'Movement', render: (r) => r.roaming ? '<span class="pill danger">Roaming</span>' : r.stale ? '<span class="pill warn">Stale</span>' : '<span class="pill ok">On corridor</span>' },
+        { key: 'recordedAt', label: 'Last signal', render: (r) => r.recordedAt ? Fmt.time(r.recordedAt) : '—' },
+      ],
+    });
+  },
+
+  renderWorkflow(rows) {
+    const el = currentEl('workflow-list');
+    const count = currentEl('workflow-count');
+    if (!el) return;
+    if (count) count.textContent = rows.length ? `${rows.length} open handoff${rows.length === 1 ? '' : 's'}` : 'No pending handoffs';
+    el.innerHTML = rows.length ? rows.map((r) => `<div class="workflow-row ${r.priority === 'high' ? 'urgent' : ''}">
+      <span class="workflow-dot ${escapeHtml(r.type)}"></span><div class="workflow-main"><strong>${escapeHtml(r.title)}</strong><span>${escapeHtml(r.detail)}</span></div>
+      <a class="btn sm ghost" href="#${escapeHtml(r.action)}">${escapeHtml(r.actionLabel)} &rarr;</a>
+    </div>`).join('') : '<div class="workflow-clear"><span>&#10003;</span><div><strong>Operations are clear</strong><small>No request, acceptance, active trip or incident is waiting for a handoff.</small></div></div>';
+  },
+
+  statCard(label, value, foot, tone, icon, page) {
+    return `<button type="button" class="stat ${tone}" data-kpi-page="${escapeHtml(page)}" aria-label="Open ${escapeHtml(label)}">
       <div class="label"><span>${icon}</span>${escapeHtml(label)}</div>
       <div class="value">${value}</div>
       <div class="foot">${foot}</div>
-    </div>`;
+    </button>`;
   },
 
   renderTodayBoard(rows) {

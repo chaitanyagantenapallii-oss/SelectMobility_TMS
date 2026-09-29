@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "SMI Employee",
+    "slug": "smi-employee",
+      "version": "1.0.0",
+      "orientation": "portrait",
+      "icon": "./assets-smipl-mark.png",
+      "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+      "android": {
+        "package": "in.selectmobility.employee",
+        "versionCode": 1,
+        "adaptiveIcon": {
+          "foregroundImage": "./assets-smipl-mark.png",
+          "backgroundColor": "#ffffff"
+        }
+      },
+    "extra": { "apiOrigin": "https://tms.cdsinfo.in" }
+  }
+}

@@ -25,6 +25,15 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where cloudflared >nul 2>nul
+if errorlevel 1 (
+  echo  [ERROR] cloudflared was not found on this computer.
+  echo  Install Cloudflare Tunnel, then run this script again.
+  echo.
+  pause
+  exit /b 1
+)
+
 for /f "tokens=*" %%v in ('node --version') do set NODEVER=%%v
 echo  Node.js detected: %NODEVER%
 echo.
@@ -48,12 +57,14 @@ if not exist "node_modules" (
 )
 
 echo  Starting the server...
-echo  The transport desk will open in your browser shortly.
+echo  Starting the Cloudflare tunnel...
+echo  Public SMIPL login: https://tms.cdsinfo.in/smipl/login
 echo  Keep this window open while the system is in use.
 echo  Press Ctrl+C in this window to stop the server.
 echo.
 
-start "" /b cmd /c "timeout /t 4 /nobreak >nul && start http://localhost:4000"
+start "" /b cloudflared tunnel --config "%~dp0cloudflared.yml" run
+start "" /b cmd /c "timeout /t 5 /nobreak >nul && start https://tms.cdsinfo.in/smipl/login"
 
 node server\start.js
 

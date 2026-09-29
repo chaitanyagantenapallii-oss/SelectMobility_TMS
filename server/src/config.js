@@ -37,6 +37,15 @@ const config = {
     password: process.env.ADMIN_PASSWORD || 'Select@2026',
     name: process.env.ADMIN_NAME || 'Fleet Administrator',
   },
+  liveAdmin: {
+    email: process.env.LIVE_ADMIN_EMAIL || '',
+    password: process.env.LIVE_ADMIN_PASSWORD || '',
+    name: process.env.LIVE_ADMIN_NAME || 'Live Transport Administrator',
+  },
+  gps: {
+    provider: process.env.GPS_PROVIDER || 'jiothings',
+    ingestKey: process.env.GPS_INGEST_KEY || '',
+  },
   sessionHours: Number(process.env.SESSION_HOURS || 12),
   company: {
     name: process.env.COMPANY_NAME || 'Select Mobility India Private Limited',

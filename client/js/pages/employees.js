@@ -6,12 +6,16 @@
 
 const EmployeesPage = {
   state: { search: '', status: 'all', routeId: 'all', department: 'all' },
-  lookups: { routes: [], shifts: [] },
+  lookups: { routes: [], shifts: [], companies: [] },
 
   async render(container) {
     container.innerHTML = '<div class="spinner"></div>';
-    const [routes, shifts] = await Promise.all([Api.get('/routes'), Api.get('/shifts')]);
-    this.lookups = { routes: routes.data, shifts: shifts.data };
+    const [routes, shifts, companies] = await Promise.all([
+      Api.get('/routes'),
+      Api.get('/shifts'),
+      Api.get('/organisations'),
+    ]);
+    this.lookups = { routes: routes.data, shifts: shifts.data, companies: companies.data };
 
     container.innerHTML = `
       <div class="toolbar">
@@ -78,6 +82,13 @@ const EmployeesPage = {
       columns: [
         { key: 'code', label: 'Code', cls: 'mono' },
         { key: 'name', label: 'Employee', cls: 'strong' },
+        {
+          key: 'organisation',
+          label: 'Company',
+          render: (r) => (r.organisation
+            ? escapeHtml(r.organisation)
+            : '<span class="pill danger">not assigned</span>'),
+        },
         { key: 'department', label: 'Department' },
         { key: 'phone', label: 'Phone', cls: 'mono' },
         { key: 'routeName', label: 'Route' },
@@ -121,6 +132,7 @@ const EmployeesPage = {
             <div class="section-title">Profile</div>
             <div class="kv">
               <dt>Employee code</dt><dd class="mono">${escapeHtml(e.code)}</dd>
+              <dt>Company</dt><dd>${e.organisation ? escapeHtml(e.organisation) : '<span class="pill danger">not assigned</span>'}</dd>
               <dt>Department</dt><dd>${escapeHtml(e.department)}</dd>
               <dt>Email</dt><dd>${escapeHtml(e.email)}</dd>
               <dt>Phone</dt><dd>${escapeHtml(e.phone)}</dd>
@@ -166,6 +178,14 @@ const EmployeesPage = {
       wide: true,
       body: `
         <div class="form-grid">
+          <div class="field">
+            <label>Client company <span class="req">*</span></label>
+            <select id="ef-org">
+              <option value="">-- select the company --</option>
+              ${this.lookups.companies.map((c) => `<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`).join('')}
+            </select>
+            <div class="hint">The company whose staff this is. Only that company's login will see them in the Client app.</div>
+          </div>
           <div class="field">
             <label>Employee code <span class="req">*</span></label>
             <input type="text" id="ef-code" placeholder="SMI-1042">
@@ -255,6 +275,7 @@ const EmployeesPage = {
         document.getElementById('ef-gender', modal.el).value = e.gender || 'male';
         document.getElementById('ef-status', modal.el).value = e.status;
         document.getElementById('ef-emg', modal.el).value = e.emergencyContact || '';
+        document.getElementById('ef-org', modal.el).value = e.organisation || '';
         routeSel.value = e.routeId || '';
         shiftSel.value = e.shiftId || '';
         syncStops();
@@ -266,6 +287,7 @@ const EmployeesPage = {
       const errBox = document.getElementById('ef-error', modal.el);
       errBox.style.display = 'none';
       const payload = {
+        organisation: document.getElementById('ef-org', modal.el).value,
         code: document.getElementById('ef-code', modal.el).value.trim(),
         name: document.getElementById('ef-name', modal.el).value.trim(),
         phone: document.getElementById('ef-phone', modal.el).value.trim(),

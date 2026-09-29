@@ -5,6 +5,7 @@
  *
  * Collections:
  *   users         - application logins (admin / operations / viewer)
+ *   organisations - corporate client companies the shuttle service is billed to
  *   employees     - client employees who use the shuttle service
  *   drivers       - fleet drivers with licence & badge details
  *   vehicles      - owned / contracted buses and vans
@@ -19,15 +20,21 @@
  *   documents     - compliance papers (insurance, permit, PUC, fitness)
  *   incidents     - accidents, breakdowns and escalation log
  *   expenses      - operational cost ledger
+ *   vehicleLocations - driver position pings, newest last
+ *   trackingState - one row per vehicle holding its most recent position
+ *   settings      - desk-wide key/value settings (map tiles)
  */
 
 const { JsonStore } = require('./store');
-const { restore: remoteRestore, createUploader } = require('./remote-backup');
+const supabaseBackup = require('./supabase-backup');
+const d1Backup = require('./d1-backup');
+const s3Backup = require('./remote-backup');
 const config = require('../config');
 const { hashPassword } = require('../utils/password');
 
 const EMPTY_DATABASE = {
   users: [],
+  organisations: [],
   employees: [],
   drivers: [],
   vehicles: [],
@@ -45,6 +52,15 @@ const EMPTY_DATABASE = {
   auditLog: [],
   // Raised from the client app and worked through by the transport desk.
   serviceRequests: [],
+  // Driver position pings (append-only, pruned) and the latest state per
+  // vehicle, so the desk live view is one cheap pass rather than a scan of
+  // every ping ever recorded.
+  vehicleLocations: [],
+  trackingState: [],
+  // Desk-wide key/value settings, currently just the map tile provider.
+  settings: [],
+  invoices: [],
+  commercials: [],
 };
 
 function isoDate(offsetDays = 0) {
@@ -70,6 +86,7 @@ function buildSeed() {
     role: 'admin',
     passwordHash: hashPassword(config.admin.password),
     status: 'active',
+    accountType: 'demo',
     createdAt: stamp(),
     updatedAt: stamp(),
   });
@@ -80,6 +97,7 @@ function buildSeed() {
     role: 'operations',
     passwordHash: hashPassword('Ops@2026'),
     status: 'active',
+    accountType: 'demo',
     createdAt: stamp(),
     updatedAt: stamp(),
   });
@@ -153,12 +171,81 @@ function buildSeed() {
     db.shifts.push({ id: `SHF${String(i + 1).padStart(4, '0')}`, ...s, status: 'active', createdAt: stamp(), updatedAt: stamp() });
   });
 
+  /*
+   * `stops` stays a plain array of names because the roster and every existing
+   * screen match staff to stops by name. `stopPoints` carries the same stops
+   * with real positions, which is what the tracking map plots when no map tile
+   * key has been supplied - so the desk can still see which stop a bus is near.
+   */
   const routeDefs = [
-    { code: 'R-01', name: 'Hinjewadi - Wakad Corridor', shiftId: 'SHF0001', distanceKm: 24.5, stops: ['Wakad Chowk', 'Datta Mandir', 'Hinjewadi Phase 1', 'Blue Ridge Gate', 'Plant Gate 2'] },
-    { code: 'R-02', name: 'Kothrud - Warje Corridor', shiftId: 'SHF0001', distanceKm: 19.2, stops: ['Kothrud Depot', 'Karve Nagar', 'Warje Bridge', 'Plant Gate 1'] },
-    { code: 'R-03', name: 'Pimpri - Chinchwad Corridor', shiftId: 'SHF0002', distanceKm: 27.8, stops: ['Pimpri Chowk', 'Chinchwad Station', 'Nigdi', 'Bhakti Shakti', 'Plant Gate 3'] },
-    { code: 'R-04', name: 'Hadapsar - Magarpatta Corridor', shiftId: 'SHF0001', distanceKm: 22.1, stops: ['Hadapsar Gadital', 'Magarpatta Gate', 'Kharadi Bypass', 'Plant Gate 2'] },
-    { code: 'R-05', name: 'Katraj - Swargate Night', shiftId: 'SHF0003', distanceKm: 31.4, stops: ['Katraj Chowk', 'Bibwewadi', 'Swargate', 'Shivajinagar', 'Plant Gate 1'] },
+    {
+      code: 'R-01',
+      name: 'Hinjewadi - Wakad Corridor',
+      shiftId: 'SHF0001',
+      distanceKm: 24.5,
+      stops: ['Wakad Chowk', 'Datta Mandir', 'Hinjewadi Phase 1', 'Blue Ridge Gate', 'Plant Gate 2'],
+      stopPoints: [
+        { name: 'Wakad Chowk', lat: 18.5983, lon: 73.7625 },
+        { name: 'Datta Mandir', lat: 18.6055, lon: 73.7490 },
+        { name: 'Hinjewadi Phase 1', lat: 18.5915, lon: 73.7100 },
+        { name: 'Blue Ridge Gate', lat: 18.5850, lon: 73.6990 },
+        { name: 'Plant Gate 2', lat: 18.6275, lon: 73.7420 },
+      ],
+    },
+    {
+      code: 'R-02',
+      name: 'Kothrud - Warje Corridor',
+      shiftId: 'SHF0001',
+      distanceKm: 19.2,
+      stops: ['Kothrud Depot', 'Karve Nagar', 'Warje Bridge', 'Plant Gate 1'],
+      stopPoints: [
+        { name: 'Kothrud Depot', lat: 18.5074, lon: 73.8077 },
+        { name: 'Karve Nagar', lat: 18.4900, lon: 73.8180 },
+        { name: 'Warje Bridge', lat: 18.4830, lon: 73.7990 },
+        { name: 'Plant Gate 1', lat: 18.5300, lon: 73.8450 },
+      ],
+    },
+    {
+      code: 'R-03',
+      name: 'Pimpri - Chinchwad Corridor',
+      shiftId: 'SHF0002',
+      distanceKm: 27.8,
+      stops: ['Pimpri Chowk', 'Chinchwad Station', 'Nigdi', 'Bhakti Shakti', 'Plant Gate 3'],
+      stopPoints: [
+        { name: 'Pimpri Chowk', lat: 18.6280, lon: 73.8000 },
+        { name: 'Chinchwad Station', lat: 18.6410, lon: 73.7950 },
+        { name: 'Nigdi', lat: 18.6510, lon: 73.7620 },
+        { name: 'Bhakti Shakti', lat: 18.6580, lon: 73.7530 },
+        { name: 'Plant Gate 3', lat: 18.6275, lon: 73.7420 },
+      ],
+    },
+    {
+      code: 'R-04',
+      name: 'Hadapsar - Magarpatta Corridor',
+      shiftId: 'SHF0001',
+      distanceKm: 22.1,
+      stops: ['Hadapsar Gadital', 'Magarpatta Gate', 'Kharadi Bypass', 'Plant Gate 2'],
+      stopPoints: [
+        { name: 'Hadapsar Gadital', lat: 18.5089, lon: 73.9260 },
+        { name: 'Magarpatta Gate', lat: 18.5150, lon: 73.9280 },
+        { name: 'Kharadi Bypass', lat: 18.5520, lon: 73.9430 },
+        { name: 'Plant Gate 2', lat: 18.6275, lon: 73.7420 },
+      ],
+    },
+    {
+      code: 'R-05',
+      name: 'Katraj - Swargate Night',
+      shiftId: 'SHF0003',
+      distanceKm: 31.4,
+      stops: ['Katraj Chowk', 'Bibwewadi', 'Swargate', 'Shivajinagar', 'Plant Gate 1'],
+      stopPoints: [
+        { name: 'Katraj Chowk', lat: 18.4530, lon: 73.8570 },
+        { name: 'Bibwewadi', lat: 18.4750, lon: 73.8630 },
+        { name: 'Swargate', lat: 18.5010, lon: 73.8580 },
+        { name: 'Shivajinagar', lat: 18.5310, lon: 73.8470 },
+        { name: 'Plant Gate 1', lat: 18.5300, lon: 73.8450 },
+      ],
+    },
   ];
   routeDefs.forEach((r, i) => {
     db.routes.push({ id: `RTE${String(i + 1).padStart(4, '0')}`, ...r, status: 'active', createdAt: stamp(), updatedAt: stamp() });
@@ -397,12 +484,71 @@ function buildSeed() {
   /* ------------------------------------------------------------------------
      Mobile app accounts
      Added after drivers and employees exist so they can be linked by id.
-     Two client organisations let the Client app's scoping be seen working:
-     a client account must never see the other organisation's staff.
+     Client organisations let the Client app's scoping be seen working:
+     a client account must never see another company's staff.
      ------------------------------------------------------------------------ */
 
-  // Tag employees with an organisation so the Client app has something to scope.
-  const CLIENT_ORGS = ['Bharat Forge Ltd', 'Kirloskar Pneumatic'];
+  /*
+   * Companies are real records now, not loose strings, so the desk can onboard
+   * a new corporate customer without a code change. `name` is the join key the
+   * employees and client logins below store, so it must match exactly.
+   */
+  db.organisations.push(
+    {
+      id: 'ORG0001',
+      name: 'Bharat Forge Ltd',
+      code: 'BFL',
+      industry: 'Forging & Auto Components',
+      status: 'active',
+      contactName: 'Kavita Rao',
+      contactRole: 'Facilities Manager',
+      contactPhone: '+91 98220 41155',
+      contactEmail: 'kavita.rao@bharatforge.example',
+      address: 'Mundhwa, Pune - 411036',
+      city: 'Pune, Maharashtra, India',
+      gstin: '27AAACB1234C1Z5',
+      billingCycle: 'monthly',
+      contractTill: isoDate(210),
+      ratePerTrip: 1850,
+      dailyPackageRate: 48000,
+      operatingDaysPerMonth: 22,
+      includedSedanTripsPerDay: 3,
+      extraSedanTripRate: 600,
+      gstRate: 18,
+      notes: 'Two shifts served. Gate 3 is the primary boarding point.',
+      contacts: [
+        { name: 'Kavita Rao', role: 'Facilities Manager', email: 'kavita.rao@bharatforge.example', phone: '+91 98220 41155' },
+      ],
+      createdAt: stamp(-90000),
+      updatedAt: stamp(-90000),
+    },
+    {
+      id: 'ORG0002',
+      name: 'Kirloskar Pneumatic',
+      code: 'KPC',
+      industry: 'Industrial Machinery',
+      status: 'active',
+      contactName: 'Sandeep Joshi',
+      contactRole: 'Admin Head',
+      contactPhone: '+91 98814 22907',
+      contactEmail: 'sandeep.joshi@kirloskar.example',
+      address: 'Hadapsar Industrial Estate, Pune - 411013',
+      city: 'Pune, Maharashtra, India',
+      gstin: '27AAACK7788D1Z2',
+      billingCycle: 'monthly',
+      contractTill: isoDate(95),
+      ratePerTrip: 1720,
+      notes: 'Evening drop only on the Wakad corridor.',
+      contacts: [
+        { name: 'Sandeep Joshi', role: 'Admin Head', email: 'sandeep.joshi@kirloskar.example', phone: '+91 98814 22907' },
+      ],
+      createdAt: stamp(-88000),
+      updatedAt: stamp(-88000),
+    },
+  );
+
+  // Tag employees with a company so the Client app has something to scope.
+  const CLIENT_ORGS = db.organisations.map((o) => o.name);
   db.employees.forEach((emp, i) => {
     emp.organisation = CLIENT_ORGS[i % CLIENT_ORGS.length];
   });
@@ -432,25 +578,75 @@ function buildSeed() {
     organisation: CLIENT_ORGS[0],
     passwordHash: hashPassword('Client@2026'),
     status: 'active',
+    accountType: 'demo',
     createdAt: stamp(),
     updatedAt: stamp(),
   });
 
   // A real open request so the Client app is not empty on first run.
+  //
+  // `kind: 'general'` and `status: 'pending'` match what the Client app now
+  // writes. It was seeded as 'open', which the new request workflow does not
+  // recognise, so the desk's request list would have shown a status it could not
+  // filter or act on.
   db.serviceRequests.push({
     id: 'SRQ0001',
     organisation: CLIENT_ORGS[0],
     raisedBy: 'client@selectmobility.in',
     raisedByName: 'Kavita Rao',
+    kind: 'general',
     category: 'new-employee',
     priority: 'normal',
     subject: 'Add two new joiners to the S1 pickup',
     detail: 'Two quality engineers join on the 1st and will need the Hadapsar pickup at 07:05.',
-    status: 'open',
+    status: 'pending',
     response: '',
     createdAt: stamp(),
     updatedAt: stamp(),
   });
+
+  // Bharat Forge scale simulation: enough data to exercise pagination,
+  // allocation, KYC, tracking and billing screens without using fake KPI math.
+  const bharatForge = CLIENT_ORGS[0];
+  const vehicleModels = ['Maruti Ertiga', 'Toyota Rumion', 'Kia Carens', 'Force Traveller 17', 'Tata Winger'];
+  const vendorNames = ['Apex Mobility', 'BlueLine Travels', 'CityRide Fleet', 'Deccan Transport', 'Elite Commute'];
+  while (db.vendors.length < 50) {
+    const n = db.vendors.length + 1;
+    db.vendors.push({ id: `VEN${String(n).padStart(4, '0')}`, name: `${vendorNames[n % vendorNames.length]} ${String(n).padStart(2, '0')}`, contact: `Vendor Manager ${n}`, phone: `+91 98${String(20000000 + n * 137).slice(0, 8)}`, gstin: `27AA${String(1000000 + n).slice(0, 7)}P1Z5`, rating: Number((3.6 + (n % 14) / 10).toFixed(1)), status: n % 17 === 0 ? 'onboarding' : 'active', contractTill: isoDate(120 + n * 5), createdAt: stamp(), updatedAt: stamp() });
+  }
+  while (db.vehicles.length < 200) {
+    const n = db.vehicles.length + 1;
+    const vendor = db.vendors[(n - 1) % db.vendors.length];
+    db.vehicles.push({ id: `VEH${String(n).padStart(4, '0')}`, regNo: `MH-${n % 2 ? '12' : '14'}-${String.fromCharCode(65 + (n % 26))}${String.fromCharCode(65 + ((n + 7) % 26))}-${String(1000 + n).slice(-4)}`, model: vehicleModels[n % vehicleModels.length], type: 'car', seats: 4, vendorId: vendor.id, fuelType: n % 9 === 0 ? 'electric' : n % 4 === 0 ? 'cng' : 'diesel', status: n % 23 === 0 ? 'maintenance' : n % 19 === 0 ? 'idle' : 'active', ownership: 'contract', odometer: 28000 + n * 613, insuranceExpiry: isoDate(30 + n % 270), permitExpiry: isoDate(60 + n % 210), pucExpiry: isoDate(20 + n % 150), fitnessExpiry: isoDate(120 + n % 300), createdAt: stamp(), updatedAt: stamp() });
+  }
+  while (db.drivers.length < 200) {
+    const n = db.drivers.length + 1;
+    const vehicle = db.vehicles[(n - 1) % db.vehicles.length];
+    db.drivers.push({ id: `DRV${String(n).padStart(4, '0')}`, name: `Driver ${String(n).padStart(3, '0')}`, phone: `+91 97${String(30000000 + n * 173).slice(0, 8)}`, licenceNo: `MH12${String(201500000000 + n)}`, licenceExpiry: isoDate(90 + n % 500), badge: `BF-BDG-${String(n).padStart(4, '0')}`, vendorId: vehicle.vendorId, assignedVehicleId: vehicle.id, experience: 3 + n % 18, address: 'Pune, Maharashtra', status: n % 31 === 0 ? 'on-leave' : 'active', createdAt: stamp(), updatedAt: stamp() });
+  }
+  while (db.employees.length < 450) {
+    const n = db.employees.length + 1;
+    const route = db.routes[(n - 1) % db.routes.length];
+    db.employees.push({ id: `EMP${String(n).padStart(5, '0')}`, code: `BF${String(n).padStart(4, '0')}`, name: `Bharat Forge Staff ${String(n).padStart(3, '0')}`, email: `staff${n}@bharatforge.example`, phone: `+91 96${String(40000000 + n * 149).slice(0, 8)}`, department: ['Operations', 'Quality', 'Engineering', 'Finance', 'HR'][n % 5], organisation: bharatForge, routeId: route.id, shiftId: route.shiftId, stop: route.stops[n % route.stops.length], status: n % 29 === 0 ? 'inactive' : 'active', emergencyContact: `+91 95${String(50000000 + n * 101).slice(0, 8)}`, createdAt: stamp(), updatedAt: stamp() });
+  }
+  // A traceable request-to-invoice sample: 24 requests, 24 allocated trips,
+  // completed bookings and monthly invoice rows for the client dashboard.
+  for (let n = 2; n <= 25; n += 1) db.serviceRequests.push({ id: `SRQ${String(n).padStart(4, '0')}`, organisation: bharatForge, raisedBy: 'client@selectmobility.in', raisedByName: 'Kavita Rao', kind: 'adhoc', category: 'employee-transport', priority: n % 7 === 0 ? 'high' : 'normal', subject: `Ad-hoc staff transport request ${n}`, detail: 'Generated workflow test request for Bharat Forge.', status: n <= 4 ? 'pending' : 'approved', createdAt: stamp(-n * 90), updatedAt: stamp(-n * 60) });
+  const bfEmployees = db.employees.filter((e) => e.organisation === bharatForge && e.status === 'active');
+  for (let n = 0; n < 24; n += 1) {
+    const tripId = `BFT${String(n + 1).padStart(4, '0')}`;
+    const route = db.routes[n % db.routes.length];
+    const vehicle = db.vehicles[n % db.vehicles.length];
+    const driver = db.drivers[n % db.drivers.length];
+    const tripDate = isoDate(-(n % 18));
+    const trip = { id: tripId, date: tripDate, shiftId: route.shiftId, routeId: route.id, vehicleId: vehicle.id, driverId: driver.id, departureAt: `${tripDate} 07:00:00`, arrivalAt: `${tripDate} 08:15:00`, plannedKm: route.distanceKm * 2, actualKm: Number((route.distanceKm * 2.04).toFixed(1)), fuelCost: Math.round(route.distanceKm * 2 * 11.8), tollCost: 120, passengersAllocated: 0, passengersBoarded: 0, status: n < 2 ? 'in-progress' : 'completed', notes: '', organisation: bharatForge, billingRate: 1850, createdAt: stamp(-n * 90), updatedAt: stamp(-n * 60) };
+    db.trips.push(trip);
+    const riders = bfEmployees.slice((n * 7) % Math.max(1, bfEmployees.length - 8), ((n * 7) % Math.max(1, bfEmployees.length - 8)) + 8);
+    riders.forEach((emp, i) => { const bookingId = `BFB${String(n * 10 + i + 1).padStart(5, '0')}`; db.bookings.push({ id: bookingId, tripId, employeeId: emp.id, stop: emp.stop, status: trip.status === 'completed' ? 'completed' : 'confirmed', createdAt: stamp(-n * 90), updatedAt: stamp(-n * 60) }); });
+    trip.passengersAllocated = riders.length; trip.passengersBoarded = trip.status === 'completed' ? riders.length - (n % 5 === 0 ? 1 : 0) : 0;
+  }
+  for (let month = 0; month < 3; month += 1) db.invoices.push({ id: `INV-BF-${String(month + 1).padStart(3, '0')}`, organisation: bharatForge, period: isoDate(-(month * 30)).slice(0, 7), status: month === 0 ? 'draft' : 'paid', includedTrips: 66, additionalTrips: month === 0 ? 0 : 12, dailyPackageRate: 48000, operatingDays: 22, extraTripRate: 600, baseAmount: 1056000, extraAmount: month === 0 ? 0 : 7200, subtotal: month === 0 ? 1056000 : 1063200, gstRate: 18, gstAmount: month === 0 ? 190080 : 191376, total: month === 0 ? 1246080 : 1254576, createdAt: stamp(-month * 30 * 24 * 60), dueAt: isoDate(15 - month * 30) });
+  db.commercials.push({ id: 'COM0001', name: 'Bharat Forge sedan monthly package', type: 'client', organisation: bharatForge, vehicleType: 'sedan', operatingDays: 22, includedTripsPerDay: 3, monthlyRate: 60000, extraTripRate: 900, vendorCost: 48000, vendorExtraTripRate: 600, gstRate: 18, status: 'active', createdAt: stamp(), updatedAt: stamp() });
 
   return db;
 }
@@ -486,11 +682,14 @@ async function initStore() {
   if (store._initialised) return store;
   store._initialised = true;
 
-  const remote = createUploader(config.databaseFile);
+  const backup = supabaseBackup.isEnabled()
+    ? supabaseBackup
+    : (d1Backup.isEnabled() ? d1Backup : s3Backup);
+  const remote = backup.createUploader(config.databaseFile);
   // Attach before the restore so any write triggered by it is mirrored.
   store.remote = remote;
 
-  const restoreResult = await remoteRestore(config.databaseFile);
+  const restoreResult = await backup.restore(config.databaseFile);
 
   if (restoreResult === 'restored') {
     console.log(`[db] Restored latest data from remote storage (${config.databaseFile}).`);
@@ -517,9 +716,95 @@ function seedIfEmpty(force = false) {
     const data = buildSeed();
     for (const key of Object.keys(data)) s.data[key] = data[key];
     s.save();
+    ensureLiveAdmin(s);
+    ensureConfiguredAdmin(s);
+    ensureDemoAccounts(s);
+    ensureSmiplMasterAdmin(s);
+    s.save();
     return true;
   }
+  ensureLiveAdmin(s);
+  ensureConfiguredAdmin(s);
+  ensureDemoAccounts(s);
+  ensureSmiplMasterAdmin(s);
   return false;
+}
+
+/** Keep the SMIPL tenant master login available after every deployment. */
+function ensureSmiplMasterAdmin(s) {
+  const email = 'admin@selectmobility.in';
+  let user = s.find('users', (u) => String(u.email || '').toLowerCase() === email);
+  const org = s.find('organisations', (o) => o.name === 'Bharat Forge Ltd');
+  const patch = {
+    name: 'SMIPL Master Administrator', email, role: 'admin',
+    organisation: org ? org.name : null, status: 'active',
+    passwordHash: hashPassword('Admin@2026'), accountType: 'tenant-admin',
+    updatedAt: new Date().toISOString(),
+  };
+  if (user) {
+    Object.assign(user, patch);
+  } else {
+    s.data.users.push({ id: s.nextId('users', 'USR'), ...patch, createdAt: new Date().toISOString() });
+  }
+  s.save();
+  return true;
+}
+
+/** Keep the platform administrator aligned with the configured platform login. */
+function ensureConfiguredAdmin(s) {
+  const email = String(config.admin.email || '').trim().toLowerCase();
+  if (!email) return false;
+  // Keep the provider administrator separate from the SMIPL tenant administrator.
+  // The old fallback matched the SMIPL account and rewrote it as the platform user.
+  let admin = s.find('users', (u) => u.role === 'admin' && (
+    String(u.email || '').toLowerCase() === email || u.accountType === 'platform'
+  ));
+  if (!admin) return false;
+  const changed = admin.email !== email || admin.passwordHash !== hashPassword(config.admin.password);
+  admin.email = email;
+  admin.passwordHash = hashPassword(config.admin.password);
+  admin.name = config.admin.name;
+  admin.accountType = 'platform';
+  admin.updatedAt = new Date().toISOString();
+  if (changed) s.save();
+  return changed;
+}
+
+function ensureDemoAccounts(s) {
+  const demoEmails = new Set([
+    'admin@selectmobility.in', 'ops@selectmobility.in',
+    'driver@selectmobility.in', 'client@selectmobility.in',
+  ]);
+  let changed = false;
+  s.collection('users').forEach((user) => {
+    if (demoEmails.has(String(user.email || '').toLowerCase()) && user.accountType !== 'demo') {
+      user.accountType = 'demo';
+      changed = true;
+    }
+  });
+  if (changed) s.save();
+  return changed;
+}
+
+/** Provision a separate live administrator without replacing demo accounts. */
+function ensureLiveAdmin(s) {
+  const live = config.liveAdmin;
+  if (!live.email || !live.password) return false;
+  const email = live.email.trim().toLowerCase();
+  const existing = s.find('users', (u) => u.email.toLowerCase() === email);
+  if (existing) return false;
+  s.data.users.push({
+    id: s.nextId('users', 'USR'),
+    name: live.name,
+    email,
+    role: 'admin',
+    passwordHash: hashPassword(live.password),
+    status: 'active',
+    accountType: 'live',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  return true;
 }
 
 module.exports.store = store;

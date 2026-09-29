@@ -1,24 +1,25 @@
 {
   "name": "smi-client",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "build:apk": "eas build --platform android --profile preview",
     "build:apk:local": "eas build --platform android --profile preview --local",
     "build:ios": "eas build --platform ios --profile preview"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "1.23.1",
-    "expo": "~51.0.28",
-    "expo-status-bar": "~1.12.1",
-    "react": "18.2.0",
-    "react-native": "0.74.5"
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~57.0.22",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0"
+    "@babel/core": "^7.26.0",
+    "babel-preset-expo": "~57.0.11"
   }
 }

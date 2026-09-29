@@ -204,6 +204,7 @@
 
     const open = t.status === 'scheduled';
     const running = t.status === 'in-progress';
+    const acceptancePending = open && t.driverAcceptance === 'pending';
 
     const head = `<div class="card">
       <div class="row between" style="margin-bottom:8px">
@@ -214,16 +215,19 @@
       <div class="kv"><span class="k">Shift</span><span class="v">${escapeHtml(t.shift.name)} (${escapeHtml(t.shift.pickupStart)}\u2013${escapeHtml(t.shift.pickupEnd)})</span></div>
       <div class="kv"><span class="k">Vehicle</span><span class="v">${escapeHtml(t.vehicle.regNo)}<br><span class="tiny">${escapeHtml(t.vehicle.model)}</span></span></div>
       <div class="kv"><span class="k">On board</span><span class="v">${p.boarded} / ${p.allocated}${p.noShow ? ` \u00B7 ${p.noShow} no-show` : ''}</span></div>
+      ${acceptancePending ? '<div class="kv"><span class="k">Assignment</span><span class="v">Awaiting your acceptance</span></div>' : ''}
       ${t.odometerStart ? `<div class="kv"><span class="k">Odometer at start</span><span class="v">${Fmt.num(t.odometerStart)} km</span></div>` : ''}
       ${t.actualKm ? `<div class="kv"><span class="k">Distance run</span><span class="v">${Fmt.num(t.actualKm, 1)} km</span></div>` : ''}
     </div>`;
 
     // Actions the driver needs right now, at the top where a thumb lands.
     let actions = '';
-    if (open) {
+    if (acceptancePending) {
+      actions = '<div class="row" style="gap:8px"><button class="btn primary" id="act-accept">Accept assignment</button><button class="btn" id="act-reject">Request reassignment</button></div>';
+    } else if (open) {
       actions = `<button class="btn primary" id="act-start">Start this trip</button>`;
     } else if (running) {
-      actions = `<button class="btn ok" id="act-finish">Close out trip</button>`;
+      actions = `<div class="row" style="gap:8px"><button class="btn ok" id="act-finish">Close out trip</button><button class="btn danger" id="act-sos">SOS / Emergency</button></div>`;
     }
 
     let manifest = '';
@@ -247,25 +251,65 @@
 
     const startBtn = $('#act-start', view);
     if (startBtn) {
-      startBtn.addEventListener('click', () =>
+      startBtn.addEventListener('click', () => {
+        // The server rejects a start with no odometer reading, and a brand-new
+        // trip has none recorded. Asking for it here is what makes this button
+        // able to succeed at all — it used to post `{}` and always fail with
+        // "Enter a valid starting odometer reading."
+        const answer = window.prompt('Odometer reading now (km):', '');
+        if (answer === null) return; // cancelled
+        const odo = Number(answer);
+        if (!odo || odo <= 0) {
+          Mobile.toast('Enter the odometer reading.', 'err');
+          return;
+        }
         Mobile.withBusy(startBtn, 'Starting', async () => {
           try {
-            await Api.post(`/mobile/driver/trips/${tripId}/start`, {});
+            await Api.post(`/mobile/driver/trips/${tripId}/start`, { odometerStart: odo });
             Mobile.toast('Trip started', 'ok');
             await refresh(false);
             await openTrip(tripId);
           } catch (err) {
             Mobile.toast(err.message, 'err');
           }
-        })
-      );
+        });
+      });
     }
+
+    const acceptBtn = $('#act-accept', view);
+    if (acceptBtn) acceptBtn.addEventListener('click', () => Mobile.withBusy(acceptBtn, 'Accepting', async () => {
+      try { await Api.post(`/mobile/driver/trips/${tripId}/accept`, {}); Mobile.toast('Trip accepted', 'ok'); await refresh(false); await openTrip(tripId); }
+      catch (err) { Mobile.toast(err.message, 'err'); }
+    }));
+
+    const rejectBtn = $('#act-reject', view);
+    if (rejectBtn) rejectBtn.addEventListener('click', async () => {
+      const reason = window.prompt('Why do you need this trip reassigned?', 'Vehicle or availability issue');
+      if (reason === null) return;
+      try { await Api.post(`/mobile/driver/trips/${tripId}/reject`, { reason }); Mobile.toast('Reassignment requested', 'ok'); await refresh(false); await openTrip(tripId); }
+      catch (err) { Mobile.toast(err.message, 'err'); }
+    });
 
     const finishBtn = $('#act-finish', view);
     if (finishBtn) finishBtn.addEventListener('click', () => closeOut(t, tripId));
 
+    const sosBtn = $('#act-sos', view);
+    if (sosBtn) sosBtn.addEventListener('click', async () => {
+      const description = window.prompt('Briefly describe the emergency:', 'Emergency assistance required');
+      if (description === null) return;
+      await Mobile.withBusy(sosBtn, 'Sending', async () => {
+        try {
+          await Api.post(`/mobile/driver/trips/${tripId}/sos`, { description });
+          Mobile.toast('SOS sent to the control tower', 'ok');
+        } catch (err) { Mobile.toast(err.message, 'err'); }
+      });
+    });
+
     $$('.pax .tick', view).forEach((btn) => {
       btn.addEventListener('click', () => toggleBoarding(btn, tripId));
+    });
+    $$('.pax .safe-drop', view).forEach((btn) => {
+      btn.addEventListener('click', () => confirmSafeDrop(btn, tripId));
     });
   }
 
@@ -282,7 +326,20 @@
         data-on="${on ? '1' : '0'}"
         ${locked ? 'disabled' : ''}
         aria-label="${on ? 'Undo boarding for' : 'Board'} ${escapeHtml(person.name)}">${on ? '&#10003;' : '&#9744;'}</button>
+      ${on && !locked ? `<button class="btn sm safe-drop" data-booking="${person.bookingId}" title="Confirm safe drop">Safe drop</button>` : ''}
     </div>`;
+  }
+
+  async function confirmSafeDrop(btn, tripId) {
+    if (!window.confirm('Confirm that this passenger reached the safe drop point?')) return;
+    await Mobile.withBusy(btn, 'Saving', async () => {
+      try {
+        await Api.post(`/mobile/driver/trips/${tripId}/safe-drop`, { bookingId: btn.dataset.booking });
+        btn.textContent = 'Safe drop recorded';
+        btn.disabled = true;
+        Mobile.toast('Safe drop recorded', 'ok');
+      } catch (err) { Mobile.toast(err.message, 'err'); }
+    });
   }
 
   /**
@@ -296,6 +353,8 @@
     const wasOn = btn.dataset.on === '1';
     // The endpoint takes a batch, because a driver at a stop ticks several
     // people in quick succession. One tap is simply a batch of one.
+    // `confirmed` is the un-boarded state, so un-ticking restores it. The
+    // server must accept it — it did not, which made every undo fail.
     const next = wasOn ? 'confirmed' : 'completed';
 
     btn.disabled = true;
@@ -421,6 +480,11 @@
     title.textContent = 'Log something';
 
     const vehicles = home.vehicles || [];
+    const assignedTrips = [...(home.today || []), ...(home.upcoming || [])]
+      .filter((t, i, all) => all.findIndex((x) => x.id === t.id) === i);
+    const tripOptions = assignedTrips
+      .map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.route.name)} · ${Fmt.dateShort(t.date)} · ${escapeHtml(t.vehicle.regNo)}</option>`)
+      .join('');
     const vehicleOptions = vehicles
       .map((v) => `<option value="${v.id}">${escapeHtml(v.regNo)} &middot; ${escapeHtml(v.model)}</option>`)
       .join('');
@@ -429,6 +493,10 @@
       <div class="card">
         <h2>Report a breakdown</h2>
         <p class="muted" style="margin-top:0">Tell the office now so a replacement can be arranged.</p>
+        ${assignedTrips.length ? `<div class="field">
+          <label for="bd-trip">Affected trip</label>
+          <select id="bd-trip"><option value="">Not on a trip</option>${tripOptions}</select>
+        </div>` : ''}
         <div class="field">
           <label for="bd-sev">How serious is it?</label>
           <select id="bd-sev">
@@ -509,6 +577,7 @@
         await Api.post('/mobile/driver/breakdown', {
           severity: $('#bd-sev', view).value,
           description: desc,
+          tripId: $('#bd-trip', view)?.value || undefined,
         });
         $('#bd-desc', view).value = '';
         Mobile.toast('Reported \u2014 the office has been told', 'ok');
@@ -537,7 +606,10 @@
 
     const payload = {
       litres,
-      cost,
+      // The API field is `amount`, not `cost`. Sending `cost` made every fuel
+      // entry fail with "Enter the amount paid." even though the amount had
+      // been typed in — the value was silently dropped by the server.
+      amount: cost,
       odometer: odo,
       date: $('#fu-date', view).value || todayIso(),
       station: $('#fu-station', view).value.trim() || undefined,
