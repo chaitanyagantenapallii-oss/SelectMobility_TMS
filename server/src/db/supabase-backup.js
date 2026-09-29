@@ -50,7 +50,7 @@ async function restore(filePath) {
   }
 }
 
-function createUploader(filePath, { debounceMs = 1500 } = {}) {
+function createUploader(filePath, { debounceMs = 0 } = {}) {
   if (!isEnabled()) return { schedule: () => {}, flush: async () => {}, enabled: false };
   let timer = null;
   let inFlight = null;

@@ -13,7 +13,8 @@ const schema = require('./db/schema');
 const { store, initStore, seedIfEmpty } = schema;
 const d1Backup = require('./db/d1-backup');
 const s3Backup = require('./db/remote-backup');
-const remoteBackupEnabled = () => d1Backup.isEnabled() || s3Backup.isEnabled();
+const supabaseBackup = require('./db/supabase-backup');
+const remoteBackupEnabled = () => supabaseBackup.isEnabled() || d1Backup.isEnabled() || s3Backup.isEnabled();
 const { securityHeaders, requestLogger, notFound, errorHandler } = require('./middleware/common');
 
 const authRoutes = require('./routes/auth');
