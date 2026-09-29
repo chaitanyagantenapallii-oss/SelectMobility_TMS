@@ -1,5 +1,5 @@
 /**
- * SMI Driver - React Native app.
+ * SMIPL Pilot - React Native driver app.
  *
  * Screens: sign in, Today, Manifest, History, Log (breakdown + fuel), Me.
  *

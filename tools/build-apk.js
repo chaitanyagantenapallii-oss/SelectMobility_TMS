@@ -24,6 +24,7 @@
  * -----
  *   node tools/build-apk.js driver
  *   node tools/build-apk.js client
+ *   node tools/build-apk.js employee
  *   node tools/build-apk.js driver --clean      # regenerate android/ first
  *   node tools/build-apk.js driver --prebuild   # force prebuild
  *
@@ -267,7 +268,7 @@ function main() {
   const forcePrebuild = args.includes('--prebuild');
 
   if (!target || !APPS[target]) {
-    log('Usage: node tools/build-apk.js <driver|client> [--clean] [--prebuild]');
+    log('Usage: node tools/build-apk.js <driver|client|employee> [--clean] [--prebuild]');
     process.exit(1);
   }
 

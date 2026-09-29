@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "SMI Driver",
+    "name": "SMIPL Pilot",
     "slug": "smi-driver",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
       "icon": "./assets/smipl-logo.png",
     "userInterfaceStyle": "light",
@@ -26,7 +26,7 @@
     },
     "android": {
       "package": "in.selectmobility.driver",
-      "versionCode": 3,
+      "versionCode": 4,
         "adaptiveIcon": {
           "foregroundImage": "./assets/smipl-logo.png",
           "backgroundColor": "#ffffff"

@@ -1,4 +1,4 @@
-// Start the Expo dev server for the SMI Driver app.
+// Start the Expo dev server for the SMIPL Pilot app.
 //
 // Why this wrapper exists: the Expo CLI spawns `git` during startup, and the
 // sandbox this runs in blocks that, which kills the CLI before Metro ever

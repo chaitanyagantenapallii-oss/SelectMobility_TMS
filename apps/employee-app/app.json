@@ -2,14 +2,14 @@
   "expo": {
     "name": "SMIPL User",
     "slug": "smi-employee",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "orientation": "portrait",
       "icon": "./assets-smipl-mark.png",
       "userInterfaceStyle": "light",
     "assetBundlePatterns": ["**/*"],
       "android": {
         "package": "in.selectmobility.employee",
-        "versionCode": 1,
+        "versionCode": 2,
         "adaptiveIcon": {
           "foregroundImage": "./assets-smipl-mark.png",
           "backgroundColor": "#ffffff"
