@@ -2,11 +2,14 @@
 
 const express = require('express');
 const { store } = require('../db/schema');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireRole } = require('../middleware/auth');
 const { today, daysBetween, round, sum } = require('../utils/helpers');
 
 const router = express.Router();
 router.use(authenticate);
+// Dashboard, billing, and commercial data belong to the SMIPL operations desk.
+// Client accounts use the organisation-scoped /api/mobile/client endpoints.
+router.use(requireRole('operations', 'viewer'));
 
 router.get('/billing', (_req, res) => {
   const invoices = store.collection('invoices');
