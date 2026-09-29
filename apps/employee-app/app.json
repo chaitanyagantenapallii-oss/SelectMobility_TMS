@@ -15,6 +15,6 @@
           "backgroundColor": "#ffffff"
         }
       },
-    "extra": { "apiOrigin": "https://tms.cdsinfo.in" }
+    "extra": { "apiOrigin": "https://select-mobility-tms.onrender.com" }
   }
 }

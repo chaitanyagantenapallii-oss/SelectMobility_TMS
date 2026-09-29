@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const DEFAULT_ORIGIN = 'https://tms.cdsinfo.in';
+export const DEFAULT_ORIGIN = 'https://select-mobility-tms.onrender.com';
 const TOKEN_KEY = 'smi_employee_token';
 const USER_KEY = 'smi_employee_user';
 let token = '';

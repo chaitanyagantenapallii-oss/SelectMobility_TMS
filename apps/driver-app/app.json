@@ -39,7 +39,7 @@
       ]
     },
     "extra": {
-      "apiOrigin": "https://tms.cdsinfo.in",
+      "apiOrigin": "https://select-mobility-tms.onrender.com",
       "eas": {
         "projectId": "8febcb3b-42d3-4987-8637-dcb3c2991e48"
       }
