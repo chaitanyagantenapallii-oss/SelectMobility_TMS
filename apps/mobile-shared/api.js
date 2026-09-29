@@ -14,7 +14,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /** Set this to your deployed origin before building. */
-export const DEFAULT_ORIGIN = 'https://e818ce755fb54546ab1b9ebe3aea875c.sg.agentos-app.run';
+export const DEFAULT_ORIGIN = 'https://tms.cdsinfo.in';
 
 const TOKEN_KEY = 'smi_tms_token';
 const USER_KEY = 'smi_tms_user';
