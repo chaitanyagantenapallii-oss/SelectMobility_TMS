@@ -65,6 +65,20 @@ body {
 a { color: var(--brand-600); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* Dispatch-desk presentation: practical, quiet and operational. */
+.command-search {
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+.command-search input::placeholder { color: var(--ink-400); }
+.topbar { box-shadow: 0 1px 0 rgba(15, 23, 42, .05); }
+.content { max-width: 1480px; }
+.card, .panel, .table-wrap { box-shadow: var(--shadow-sm); }
+.card-head { background: #fff; }
+.primary, .btn.primary { background: var(--brand-700); }
+.primary:hover, .btn.primary:hover { background: var(--brand-800); }
+
 h1, h2, h3, h4 { margin: 0 0 8px; font-weight: 600; line-height: 1.25; }
 h1 { font-size: 22px; }
 h2 { font-size: 18px; }
